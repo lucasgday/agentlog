@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Build Log · Session viewer</title>
+<title>agentlog · Session viewer</title>
 <style>
   :root{
     --spine:#0F2A28; --spine-2:#143836; --paper:#FAFAF6; --panel:#FFFFFF;
@@ -241,7 +241,7 @@
 <body>
   <header class="topbar">
     <button class="btn ghost menu-toggle" id="menuToggle" aria-label="Projects">☰</button>
-    <div class="brand"><span class="mark">Build Log</span><span class="sub" id="backupStamp">local viewer · 100% offline</span></div>
+    <div class="brand"><span class="mark">agentlog</span><span class="sub" id="backupStamp">local viewer · 100% offline</span></div>
     <div class="grow"></div>
     <div class="global-count" id="globalCount"></div>
     <button class="btn-log" id="btnLang" title="Language">🌐 ES</button>
@@ -320,7 +320,7 @@ const state = {
 /* ---------- i18n ---------- */
 const I18N = {
   en: {
-    doc_title:"Build Log · Session viewer",
+    doc_title:"agentlog · Session viewer",
     sub_default:"local viewer · 100% offline",
     last_backup:"last backup",
     save_progress:"Save progress", load:"Load", open_folder:"Open folder",
@@ -351,7 +351,7 @@ const I18N = {
     bad_progress:"Couldn't read that progress file.",
   },
   es: {
-    doc_title:"Build Log · Visor de sesiones",
+    doc_title:"agentlog · Visor de sesiones",
     sub_default:"visor local · 100% offline",
     last_backup:"último respaldo",
     save_progress:"Guardar progreso", load:"Cargar", open_folder:"Abrir carpeta",
@@ -1128,7 +1128,7 @@ document.getElementById("menuToggle").addEventListener("click",()=>document.getE
 document.getElementById("exportBtn").addEventListener("click",()=>{
   const blob=new Blob([JSON.stringify(state.progress,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download="build-log-progress.json"; a.click();
+  a.download="agentlog-progress.json"; a.click();
 });
 document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
 document.getElementById("importFile").addEventListener("change",async e=>{
