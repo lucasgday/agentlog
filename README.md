@@ -8,31 +8,29 @@ standalone para navegarlas, agruparlas, filtrarlas y ver analíticas de tu uso.
 
 Todo corre **localmente en tu Mac**. Nada se sube a ningún lado.
 
-> Las capturas de abajo usan **datos de ejemplo generados**, no conversaciones reales.
-
 ---
 
-## Capturas
+## Por qué
 
-**Lista de conversaciones** — agrupadas por herramienta, con los turnos y los
-bloques de herramientas renderizados.
+**Tus herramientas de IA no guardan tu historial para siempre — y casi nunca te
+enterás cuando lo perdés.**
 
-![Vista de lista](docs/screenshots/main-list.png)
+- **Codex** solo lista las conversaciones recientes; las viejas dejan de
+  aparecer, aunque por un tiempo sigan en disco.
+- **Claude Code** hace limpiezas periódicas de sesiones viejas: un día están, y
+  al siguiente ya no.
+- Si reinstalás una herramienta, cambiás de máquina o se corrompe una base de
+  datos, ese historial se va **sin aviso**.
 
-**Analytics** — resumen, heatmap diario del último año, top proyectos y
-actividad en el tiempo (día/semana/mes, conversaciones o turnos).
+Esas conversaciones suelen tener **decisiones de diseño, el porqué de cómo se
+hizo algo, y contexto que tu código no registra**. Este proyecto las copia a
+Markdown **antes de que desaparezcan**, de forma incremental y acumulativa: una
+vez respaldada, una conversación **nunca se borra de tu copia**, aunque la
+herramienta de origen la elimine.
 
-![Analytics](docs/screenshots/analytics.png)
-
-**Agrupar por proyecto** — la misma colección vista por proyecto, con la
-herramienta de origen marcada en cada conversación.
-
-![Agrupar por proyecto](docs/screenshots/group-projects.png)
-
-**Historial de corridas** — cada respaldo queda registrado, con cuántas
-conversaciones nuevas aportó cada fuente.
-
-![Historial de corridas](docs/screenshots/run-history.png)
+Y como son tus datos privados, **todo corre local**: los scripts solo leen tus
+archivos y escriben Markdown en tu disco, el visor es un HTML estático. No hay
+servidor, ni nube, ni telemetría. (Ver [Privacidad](#privacidad).)
 
 ---
 
@@ -113,14 +111,42 @@ Abrí **`viewer.html`** con doble clic (se abre en el navegador como `file://`)
 y apuntalo a la carpeta donde están tus `markdown-*` (la misma carpeta base del
 respaldo). Desde ahí podés navegar, filtrar, copiar y ver las analíticas.
 
+Por defecto agrupa por **proyecto**, oculta las archivadas y las ya revisadas, y
+abre la conversación activa más reciente. Podés cambiar el agrupamiento (por
+herramienta) y los filtros desde la barra lateral.
+
+---
+
+## Capturas
+
+> Usan **datos de ejemplo generados**, no conversaciones reales.
+
+**Lista de conversaciones** — por defecto agrupadas por proyecto, con los turnos
+y los bloques de herramientas renderizados.
+
+![Vista de lista](docs/screenshots/main-list.png)
+
+**Analytics** — resumen, heatmap diario del último año, top proyectos y
+actividad en el tiempo (día/semana/mes, conversaciones o turnos).
+
+![Analytics](docs/screenshots/analytics.png)
+
+**Historial de corridas** — cada respaldo queda registrado, con cuántas
+conversaciones nuevas aportó cada fuente.
+
+![Historial de corridas](docs/screenshots/run-history.png)
+
 ---
 
 ## Privacidad
 
-**Este repo NO incluye ninguna conversación.** El `.gitignore` excluye todas las
-carpetas de markdown, los datos crudos (`*.jsonl`, `*.db`, `*.vscdb`, `*.pb`) y
-el estado de sincronización. Cada usuario respalda **sus propias** conversaciones
-localmente; nunca se commitea contenido real.
+- **Nada sale de tu máquina.** Los scripts solo leen archivos locales y escriben
+  Markdown local; el visor es un HTML estático que abrís con `file://`. Sin
+  llamadas de red, sin servidor, sin telemetría.
+- **El repo NO incluye ninguna conversación.** El `.gitignore` excluye todas las
+  carpetas de markdown, los datos crudos (`*.jsonl`, `*.db`, `*.vscdb`, `*.pb`) y
+  el estado de sincronización. Cada quien respalda **sus propias** conversaciones
+  localmente; nunca se commitea contenido real.
 
 ---
 

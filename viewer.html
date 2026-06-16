@@ -274,13 +274,13 @@
           <span class="chip on" data-type="tool"><span class="dot"></span>Herramientas</span>
         </div>
         <h3>Vista</h3>
-        <label class="toggle-row"><input type="checkbox" id="hideDone">Ocultar conversaciones marcadas</label>
-        <label class="toggle-row"><input type="checkbox" id="hideArchived">Ocultar archivadas</label>
+        <label class="toggle-row"><input type="checkbox" id="hideDone" checked>Ocultar conversaciones marcadas</label>
+        <label class="toggle-row"><input type="checkbox" id="hideArchived" checked>Ocultar archivadas</label>
         <label class="toggle-row"><input type="checkbox" id="collapseAll">Colapsar todos los turnos</label>
         <div class="group-toggle">
           <span class="gt-label">Agrupar por:</span>
-          <button class="gt-btn active" data-mode="source" id="gtSource">Herramienta</button>
-          <button class="gt-btn" data-mode="project" id="gtProject">Proyecto</button>
+          <button class="gt-btn" data-mode="source" id="gtSource">Herramienta</button>
+          <button class="gt-btn active" data-mode="project" id="gtProject">Proyecto</button>
         </div>
       </div>
       <nav class="projects" id="projects"></nav>
@@ -293,7 +293,7 @@
         <div class="hintbox">
           <b>Cómo empezar</b><br>
           1. Tocá <b>Abrir carpeta</b>.<br>
-          2. Elegí <code>~/Desktop/respaldo-claude</code> (lee todas las subcarpetas de markdown).<br>
+          2. Elegí la carpeta que contiene tus markdowns (lee todas las subcarpetas).<br>
           3. El progreso se guarda solo; usá <b>Guardar progreso</b> para un respaldo en archivo.<br><br>
           Todo corre en tu equipo. Nada se sube a internet.
         </div>
@@ -316,8 +316,8 @@ const state = {
   sessions: [], projects: new Map(), sources: new Map(),
   activeId: null,
   types: { user:true, assistant:true, tool:true },
-  query: "", hideDone:false, hideArchived:false, collapseAll:false,
-  backupInfo:{}, collapsedSources:{}, groupMode:"source",
+  query: "", hideDone:true, hideArchived:true, collapseAll:false,
+  backupInfo:{}, collapsedSources:{}, groupMode:"project",
   progress: {}  // { [sessionId]: { done:bool, turns:{ [i]:bool } } }
 };
 
@@ -529,17 +529,31 @@ async function handleFiles(fileList){
   for(const pm of state.sources.values())
     for(const p of pm.values())
       p.sessions.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  // los módulos arrancan colapsados; el usuario expande el que quiera
+  // los grupos del modo activo arrancan colapsados; el usuario expande el que quiera
   state.collapsedSources={};
-  for(const fuente of state.sources.keys()) state.collapsedSources["src:"+fuente]=true;
+  if(state.groupMode==="source"){
+    for(const fuente of state.sources.keys()) state.collapsedSources["src:"+fuente]=true;
+  } else {
+    const projs=new Set();
+    for(const pm of state.sources.values()) for(const p of pm.values()) projs.add(p.project);
+    for(const pr of projs) state.collapsedSources["proj:"+pr]=true;
+  }
+  // elegir la primera conversación activa y sin revisar (la más reciente)
+  const elegibles=state.sessions
+    .filter(s=>!s.archivada && !prog(s.id).done)
+    .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const primera=elegibles[0]||state.sessions[0];
+  if(primera){
+    // expandir el grupo que la contiene para que se vea seleccionada en la lista
+    const key=state.groupMode==="project" ? "proj:"+primera.project : "src:"+primera.fuente;
+    delete state.collapsedSources[key];
+  }
   renderSidebar();
   renderBackupStamp();
   renderGlobalCount();
   renderRunLog();
   setStickyOffsets();
-  // abrir la primera sesión visible
-  const firstSrc=[...state.sources.values()][0];
-  if(firstSrc){ const firstProj=[...firstSrc.values()][0]; if(firstProj&&firstProj.sessions[0]) openSession(firstProj.sessions[0].id); }
+  if(primera) openSession(primera.id);
 }
 
 /* ---------- sidebar ---------- */
