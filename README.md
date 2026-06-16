@@ -192,10 +192,8 @@ and writes the same standard Markdown the others do —
 ```
 
 Once the converter produces that format, the viewer and the rest of the flow
-pick it up without changes. The viewer also accepts the legacy Spanish metadata
-keys (`fecha/proyecto/fuente/archivada`) for backward compatibility. Look at any
-of the `convert_*.py` files as a reference. Bug reports, viewer improvements and
-ideas in general are welcome too.
+pick it up without changes. Look at any of the `convert_*.py` files as a
+reference. Bug reports, viewer improvements and ideas in general are welcome too.
 
 ---
 

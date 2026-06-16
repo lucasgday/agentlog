@@ -194,10 +194,8 @@ escriba el mismo Markdown estándar que usan los demás —
 ```
 
 Una vez que el conversor produce ese formato, el visor y el resto del flujo lo
-toman sin cambios. El visor también acepta las claves de metadata en español
-(`fecha/proyecto/fuente/archivada`) por compatibilidad. Fijate en cualquiera de
-los `convert_*.py` como referencia. También son bienvenidos reportes de bugs,
-mejoras al visor e ideas en general.
+toman sin cambios. Fijate en cualquiera de los `convert_*.py` como referencia.
+También son bienvenidos reportes de bugs, mejoras al visor e ideas en general.
 
 ---
 
