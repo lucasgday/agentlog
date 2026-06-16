@@ -1,210 +1,212 @@
 # respaldos-llms
 
-Respaldo local + visor de tus conversaciones con herramientas de IA-coding.
+**🇬🇧 English · 🇪🇸 [Español](README.es.md)**
 
-Este proyecto lee dónde cada herramienta guarda sus sesiones en tu disco, las
-convierte a Markdown legible con metadata estándar, y te da un visor HTML
-standalone para navegarlas, agruparlas, filtrarlas y ver analíticas de tu uso.
+Local backup + viewer for your conversations with AI-coding tools.
 
-Todo corre **localmente en tu Mac**. Nada se sube a ningún lado.
+This project reads where each tool stores its sessions on your disk, converts
+them into readable Markdown with standard metadata, and gives you a standalone
+HTML viewer to browse, group, filter and see analytics of your usage.
 
----
-
-## Por qué
-
-**Por defecto, tus herramientas de IA no conservan tu historial para siempre — y
-rara vez te enterás cuando lo perdés.**
-
-- **Claude Code** limpia transcripts viejos pasado un tiempo (por defecto, según
-  la última actividad). Es **configurable**: subiendo `cleanupPeriodDays` en
-  `~/.claude/settings.json` podés extender mucho la retención o, en la práctica,
-  desactivarla. Pero si no lo tocaste, estás en el default y las sesiones viejas
-  desaparecen.
-- **Codex** solo lista las conversaciones recientes; las viejas dejan de aparecer
-  aunque por un tiempo sigan en disco.
-- Cada herramienta tiene su propia política, su propio formato y su propio
-  alcance. Y si reinstalás, cambiás de máquina, corrés un `rm` o se corrompe una
-  base de datos, ese historial se va **sin aviso** y sin papelera.
-
-> **Nota honesta:** si usás *solo* Claude Code y subís `cleanupPeriodDays`, gran
-> parte del borrado automático deja de ser un problema. Aun así, esto sigue
-> aportando lo que un setting de retención no te da (ver abajo).
-
-Lo que este proyecto te da, más allá de la retención de cada herramienta:
-
-- **Una copia durable y aparte.** Acumulativa: una vez respaldada, una
-  conversación **nunca se borra de tu copia**, aunque la herramienta de origen la
-  elimine, reinstales o migres de máquina.
-- **Un archivo único multi-herramienta.** Claude Code, Codex, Cowork, OpenCode y
-  Cursor juntos en un mismo lugar y formato, no cinco silos con sus propias
-  reglas.
-- **Algo navegable de verdad.** Markdown legible + un visor con búsqueda,
-  agrupación, filtros, analytics y marcado de revisadas — no `.jsonl`/SQLite
-  crudos.
-
-Esas conversaciones suelen guardar **decisiones de diseño, el porqué de cómo se
-hizo algo, y contexto que tu código no registra**. La idea es tenerlo a salvo y a
-mano.
-
-Y como son tus datos privados, **todo corre local**: los scripts solo leen tus
-archivos y escriben Markdown en tu disco, el visor es un HTML estático. No hay
-servidor, ni nube, ni telemetría. (Ver [Privacidad](#privacidad).)
+Everything runs **locally on your Mac**. Nothing is uploaded anywhere. The viewer
+UI is **bilingual (English / Spanish)** with a language toggle.
 
 ---
 
-## Qué hace
+## Why
 
-- **Respaldo incremental y acumulativo.** Procesa solo lo nuevo o lo que cambió
-  desde la última corrida. Nunca borra markdowns ya generados, aunque la
-  herramienta de origen borre la conversación original.
-- **Conversión a Markdown.** Cada sesión queda como un `.md` con título, fecha,
-  id, proyecto y fuente, y los turnos separados (`### Tú` / `### Claude`, etc.).
-- **Visor HTML standalone** (`viewer.html`). Se abre con doble clic (`file://`),
-  sin servidor. Agrupa por fuente o por proyecto, colorea por herramienta,
-  filtra archivadas y revisadas, copia por turno o conversación entera, marca
-  conversaciones como revisadas (progreso exportable/importable como JSON),
-  muestra el historial de corridas y una vista de **analytics** (heatmap diario
-  estilo GitHub, top proyectos, actividad en el tiempo por día/semana/mes con
-  toggle de conversaciones/turnos).
-- **Respaldo automático diario** vía `launchd` (opcional).
+**By default, your AI tools don't keep your history forever — and you rarely
+notice when you lose it.**
+
+- **Claude Code** cleans up old transcripts after a while (by default, based on
+  last activity). It's **configurable**: raising `cleanupPeriodDays` in
+  `~/.claude/settings.json` extends retention a lot, or effectively disables it.
+  But if you never touched it, you're on the default and old sessions disappear.
+- **Codex** only lists recent conversations; older ones stop showing up even if
+  they linger on disk for a while.
+- Each tool has its own policy, format and scope. And if you reinstall, switch
+  machines, run an `rm` or a database gets corrupted, that history is gone
+  **without warning** and without a trash bin.
+
+> **Honest note:** if you use *only* Claude Code and raise `cleanupPeriodDays`,
+> much of the automatic deletion stops being a problem. Even so, this still gives
+> you what a retention setting doesn't (see below).
+
+What this project gives you, beyond each tool's retention:
+
+- **A durable, separate copy.** Cumulative: once backed up, a conversation is
+  **never deleted from your copy**, even if the source tool removes it, you
+  reinstall, or you migrate machines.
+- **A single multi-tool archive.** Claude Code, Codex, Cowork, OpenCode and
+  Cursor together in one place and format, not five silos with their own rules.
+- **Something actually browsable.** Readable Markdown + a viewer with search,
+  grouping, filters, analytics and review-marking — not raw `.jsonl`/SQLite.
+
+Those conversations often hold **design decisions, the why behind how something
+was done, and context your code doesn't record**. The point is to keep it safe
+and at hand.
+
+And since it's your private data, **everything runs locally**: the scripts only
+read your files and write Markdown to your disk, the viewer is a static HTML
+file. No server, no cloud, no telemetry. (See [Privacy](#privacy).)
 
 ---
 
-## Fuentes soportadas
+## What it does
 
-| Herramienta  | Origen en disco                                                        |
+- **Incremental, cumulative backup.** Only processes what's new or changed since
+  the last run. Never deletes already-generated markdowns, even if the source
+  tool removes the original conversation.
+- **Markdown conversion.** Each session becomes a `.md` with title, date, id,
+  project and source, and separated turns (`### You` / `### Claude`, etc.).
+- **Standalone HTML viewer** (`viewer.html`). Opens with a double-click
+  (`file://`), no server. Groups by source or project, colors by tool, filters
+  archived and reviewed, copies per turn or whole conversation, marks
+  conversations as reviewed (progress exportable/importable as JSON), shows the
+  run history and an **analytics** view (GitHub-style daily heatmap, top
+  projects, activity over time by day/week/month, toggling conversations/turns).
+  Bilingual UI (EN/ES).
+- **Daily automatic backup** via `launchd` (optional).
+
+---
+
+## Supported sources
+
+| Tool         | Location on disk                                                       |
 |--------------|------------------------------------------------------------------------|
 | Claude Code  | `~/.claude/projects/*/*.jsonl`                                          |
-| Codex        | `~/.codex/sessions` y `~/.codex/archived_sessions`                      |
+| Codex        | `~/.codex/sessions` and `~/.codex/archived_sessions`                    |
 | Cowork       | `~/Library/Application Support/Claude/local-agent-mode-sessions`        |
 | OpenCode     | `~/.local/share/opencode/opencode.db`                                   |
 | Cursor       | `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`   |
 
-### No soportadas (y por qué)
+### Not supported (and why)
 
-- **Antigravity** — guarda las sesiones en un formato protobuf propietario sin
-  esquema público, así que no hay forma estable de parsearlas.
-- **claude.ai** (la app web) — las conversaciones viven en la nube de Anthropic,
-  no quedan en tu disco, por lo que no hay nada local que respaldar.
-
----
-
-## Instalación
-
-Requiere **macOS** y **Python 3** (viene con macOS).
-
-```bash
-# Dar permiso de ejecución a los scripts
-chmod +x actualizar-respaldo.sh *.command
-```
-
-### Correr el respaldo a mano
-
-```bash
-./actualizar-respaldo.sh
-```
-
-Por defecto la base es la carpeta donde vive el script. Podés pasar otra ruta
-como primer argumento si querés guardar los markdowns en otro lado:
-
-```bash
-./actualizar-respaldo.sh ~/mis-respaldos
-```
-
-También podés hacer **doble clic** en `actualizar-respaldo.command`.
-
-### Activar el respaldo automático (diario, 12:00)
-
-Doble clic en `instalar-automatico.command`. Instala una tarea de `launchd` que
-corre el respaldo todos los días al mediodía (o al despertar la Mac si estaba
-dormida).
-
-Para quitarla: doble clic en `desinstalar-automatico.command`.
+- **Antigravity** — stores sessions in a proprietary protobuf format with no
+  public schema, so there's no stable way to parse them.
+- **claude.ai** (the web app) — conversations live in Anthropic's cloud, not on
+  your disk, so there's nothing local to back up.
 
 ---
 
-## Usar el visor
+## Install
 
-Abrí **`viewer.html`** con doble clic (se abre en el navegador como `file://`)
-y apuntalo a la carpeta donde están tus `markdown-*` (la misma carpeta base del
-respaldo). Desde ahí podés navegar, filtrar, copiar y ver las analíticas.
+Requires **macOS** and **Python 3** (ships with macOS).
 
-Por defecto agrupa por **proyecto**, oculta las archivadas y las ya revisadas, y
-abre la conversación activa más reciente. Podés cambiar el agrupamiento (por
-herramienta) y los filtros desde la barra lateral.
+```bash
+# Make the scripts executable
+chmod +x update-backup.sh *.command
+```
+
+### Run the backup by hand
+
+```bash
+./update-backup.sh
+```
+
+By default the base is the folder where the script lives. You can pass another
+path as the first argument to store the markdowns elsewhere:
+
+```bash
+./update-backup.sh ~/my-backups
+```
+
+You can also **double-click** `update-backup.command`.
+
+### Enable the automatic backup (daily, 12:00)
+
+Double-click `install-auto.command`. It installs a `launchd` task that runs the
+backup every day at noon (or when the Mac wakes up if it was asleep).
+
+To remove it: double-click `uninstall-auto.command`.
 
 ---
 
-## Capturas
+## Using the viewer
 
-> Usan **datos de ejemplo generados**, no conversaciones reales.
+Open **`viewer.html`** with a double-click (it opens in your browser as
+`file://`) and point it at the folder with your `markdown-*` backups (the same
+base folder). From there you can browse, filter, copy and see the analytics.
 
-**Lista de conversaciones** — por defecto agrupadas por proyecto, con los turnos
-y los bloques de herramientas renderizados.
+By default it groups by **project**, hides archived and already-reviewed
+conversations, and opens the most recent active conversation. You can change the
+grouping (by tool), the filters and the **language (EN/ES)** from the top bar /
+sidebar.
 
-![Vista de lista](docs/screenshots/main-list.png)
+---
 
-**Analytics** — resumen, heatmap diario del último año, top proyectos y
-actividad en el tiempo (día/semana/mes, conversaciones o turnos).
+## Screenshots
+
+> Generated from **sample data**, not real conversations.
+
+**Conversation list** — grouped by project by default, with turns and tool
+blocks rendered.
+
+![List view](docs/screenshots/main-list.png)
+
+**Analytics** — summary, daily heatmap of the last year, top projects and
+activity over time (day/week/month, conversations or turns).
 
 ![Analytics](docs/screenshots/analytics.png)
 
-**Historial de corridas** — cada respaldo queda registrado, con cuántas
-conversaciones nuevas aportó cada fuente.
+**Run history** — every backup is logged, with how many new conversations each
+source contributed.
 
-![Historial de corridas](docs/screenshots/run-history.png)
-
----
-
-## Privacidad
-
-- **Nada sale de tu máquina.** Los scripts solo leen archivos locales y escriben
-  Markdown local; el visor es un HTML estático que abrís con `file://`. Sin
-  llamadas de red, sin servidor, sin telemetría.
-- **El repo NO incluye ninguna conversación.** El `.gitignore` excluye todas las
-  carpetas de markdown, los datos crudos (`*.jsonl`, `*.db`, `*.vscdb`, `*.pb`) y
-  el estado de sincronización. Cada quien respalda **sus propias** conversaciones
-  localmente; nunca se commitea contenido real.
+![Run history](docs/screenshots/run-history.png)
 
 ---
 
-## Contribuir
+## Privacy
 
-**Las sugerencias y aportes son bienvenidos** — sobre todo para **soportar más
-herramientas de IA-coding**. Si la que usás guarda sus sesiones en disco y no
-está en la lista, abrí un *issue* o mandá un *pull request*.
+- **Nothing leaves your machine.** The scripts only read local files and write
+  local Markdown; the viewer is a static HTML file you open with `file://`. No
+  network calls, no server, no telemetry.
+- **The repo includes NO conversations.** The `.gitignore` excludes all markdown
+  folders, the raw data (`*.jsonl`, `*.db`, `*.vscdb`, `*.pb`) and the sync
+  state. Everyone backs up **their own** conversations locally; real content is
+  never committed.
 
-Sumar una fuente nueva es acotado: alcanza con un conversor que lea ese origen y
-escriba el mismo Markdown estándar que usan los demás —
+---
+
+## Contributing
+
+**Suggestions and contributions are welcome** — especially to **support more
+AI-coding tools**. If the one you use stores its sessions on disk and isn't on
+the list, open an *issue* or send a *pull request*.
+
+Adding a new source is small: you just need a converter that reads that origin
+and writes the same standard Markdown the others do —
 
 ```
-# <título>
+# <title>
 
-<!-- fecha: <ISO> | id: <id> | proyecto: <proyecto> | fuente: <fuente> | archivada: <true|false> -->
+<!-- date: <ISO> | id: <id> | project: <project> | source: <source> | archived: <true|false> -->
 
-### Tú
+### You
 
 …
 
-### <Asistente>
+### <Assistant>
 
 …
 ```
 
-Una vez que el conversor produce ese formato, el visor y el resto del flujo lo
-toman sin cambios. Fijate en cualquiera de los `convert_*.py` como referencia.
-También son bienvenidos reportes de bugs, mejoras al visor e ideas en general.
+Once the converter produces that format, the viewer and the rest of the flow
+pick it up without changes. The viewer also accepts the legacy Spanish metadata
+keys (`fecha/proyecto/fuente/archivada`) for backward compatibility. Look at any
+of the `convert_*.py` files as a reference. Bug reports, viewer improvements and
+ideas in general are welcome too.
 
 ---
 
-## Notas
+## Notes
 
-- **macOS-only por ahora.** Usa `launchd` y rutas propias de macOS para ubicar
-  los orígenes. Portarlo a Linux/Windows implicaría ajustar esas rutas y el
-  mecanismo de tarea automática.
+- **macOS-only for now.** It uses `launchd` and macOS-specific paths to locate
+  the sources. Porting to Linux/Windows would mean adjusting those paths and the
+  automatic-task mechanism.
 
 ---
 
-## Licencia
+## License
 
-MIT — ver [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

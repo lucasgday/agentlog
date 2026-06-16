@@ -15,8 +15,9 @@ instrucciones-extraidas/
 *.vscdb
 *.pb
 
-# Metadata / estado generado
+# Generated metadata / state
 _backup-info.json
+build-log-progress.json
 build-log-progreso.json
 
 # Python

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Build Log · Visor de sesiones</title>
+<title>Build Log · Session viewer</title>
 <style>
   :root{
     --spine:#0F2A28; --spine-2:#143836; --paper:#FAFAF6; --panel:#FFFFFF;
@@ -240,47 +240,48 @@
 </head>
 <body>
   <header class="topbar">
-    <button class="btn ghost menu-toggle" id="menuToggle" aria-label="Proyectos">☰</button>
-    <div class="brand"><span class="mark">Build Log</span><span class="sub" id="backupStamp">claude code · codex · cowork</span></div>
+    <button class="btn ghost menu-toggle" id="menuToggle" aria-label="Projects">☰</button>
+    <div class="brand"><span class="mark">Build Log</span><span class="sub" id="backupStamp">local viewer · 100% offline</span></div>
     <div class="grow"></div>
-    <div class="global-count" id="globalCount" title="Total de conversaciones cargadas"></div>
-    <button class="btn-log" id="btnAnalytics" title="Ver analytics">📊 analytics</button>
-    <button class="btn-log" id="btnLog" title="Historial de respaldos">⟳ corridas</button>
+    <div class="global-count" id="globalCount"></div>
+    <button class="btn-log" id="btnLang" title="Language">🌐 ES</button>
+    <button class="btn-log" id="btnAnalytics">📊 analytics</button>
+    <button class="btn-log" id="btnLog">⟳ runs</button>
     <div class="search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="search" placeholder="Buscar…" autocomplete="off">
+      <input id="search" type="search" placeholder="Search…" autocomplete="off">
     </div>
-    <button class="btn ghost sm" id="exportBtn" title="Guardar progreso a un archivo JSON">Guardar progreso</button>
-    <button class="btn ghost sm" id="importBtn" title="Cargar progreso desde JSON">Cargar</button>
+    <button class="btn ghost sm" id="exportBtn">Save progress</button>
+    <button class="btn ghost sm" id="importBtn">Load</button>
     <input id="importFile" type="file" accept="application/json" hidden>
-    <button class="btn" id="openBtn">Abrir carpeta</button>
+    <button class="btn" id="openBtn">Open folder</button>
     <input id="folder" type="file" webkitdirectory directory multiple hidden>
   </header>
 
   <div class="an-tooltip" id="anTooltip"></div>
 
   <div class="log-panel" id="logPanel">
-    <h3>Últimas corridas del respaldo</h3>
-    <div id="logBody"><div class="log-empty">Sin registro todavía. El respaldo escribe acá cada vez que corre.</div></div>
+    <h3 id="lbl-runs-title">Latest backup runs</h3>
+    <div id="logBody"><div class="log-empty"></div></div>
   </div>
 
   <div class="shell">
     <aside class="sidebar" id="sidebar">
       <div class="filters">
-        <h3>Mostrar bloques</h3>
+        <h3 id="lbl-show-blocks">Show blocks</h3>
         <div class="types" id="types">
-          <span class="chip on" data-type="user"><span class="dot"></span>Tú</span>
-          <span class="chip on" data-type="assistant"><span class="dot"></span>Asistente</span>
-          <span class="chip on" data-type="tool"><span class="dot"></span>Herramientas</span>
+          <span class="chip on" data-type="user"><span class="dot"></span><span id="lbl-chip-user">You</span></span>
+          <span class="chip on" data-type="assistant"><span class="dot"></span><span id="lbl-chip-assistant">Assistant</span></span>
+          <span class="chip on" data-type="tool"><span class="dot"></span><span id="lbl-chip-tool">Tools</span></span>
         </div>
-        <h3>Vista</h3>
-        <label class="toggle-row"><input type="checkbox" id="hideDone" checked>Ocultar conversaciones marcadas</label>
-        <label class="toggle-row"><input type="checkbox" id="hideArchived" checked>Ocultar archivadas</label>
-        <label class="toggle-row"><input type="checkbox" id="collapseAll">Colapsar todos los turnos</label>
+        <h3 id="lbl-view">View</h3>
+        <label class="toggle-row"><input type="checkbox" id="hideDone" checked><span id="lbl-hide-done">Hide marked conversations</span></label>
+        <label class="toggle-row"><input type="checkbox" id="hideArchived" checked><span id="lbl-hide-archived">Hide archived</span></label>
+        <label class="toggle-row"><input type="checkbox" id="collapseAll"><span id="lbl-collapse-turns">Collapse all turns</span></label>
         <div class="group-toggle">
-          <span class="gt-label">Agrupar por:</span>
-          <button class="gt-btn" data-mode="source" id="gtSource">Herramienta</button>
-          <button class="gt-btn active" data-mode="project" id="gtProject">Proyecto</button>
+          <span class="gt-label" id="lbl-group-by">Group by:</span>
+          <button class="gt-btn" data-mode="source" id="gtSource">Tool</button>
+          <button class="gt-btn active" data-mode="project" id="gtProject">Project</button>
         </div>
       </div>
       <nav class="projects" id="projects"></nav>
@@ -288,22 +289,16 @@
 
     <main class="reader" id="reader">
       <div class="empty" id="emptyState">
-        <h2 class="big">Tu registro de construcción</h2>
-        <p>Abrí la carpeta que contiene tus markdowns de Claude Code y Codex. Se agrupan por fuente y proyecto, con fecha, y podés marcar lo revisado.</p>
-        <div class="hintbox">
-          <b>Cómo empezar</b><br>
-          1. Tocá <b>Abrir carpeta</b>.<br>
-          2. Elegí la carpeta que contiene tus markdowns (lee todas las subcarpetas).<br>
-          3. El progreso se guarda solo; usá <b>Guardar progreso</b> para un respaldo en archivo.<br><br>
-          Todo corre en tu equipo. Nada se sube a internet.
-        </div>
+        <h2 class="big" id="empty-title">Your build log</h2>
+        <p id="empty-p">Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.</p>
+        <div class="hintbox" id="empty-how"></div>
       </div>
     </main>
 
     <section class="analytics" id="analytics" style="display:none">
       <div class="an-head">
-        <h2>Analytics</h2>
-        <button class="btn-log" id="btnCloseAnalytics">← volver a la lista</button>
+        <h2 id="an-title">Analytics</h2>
+        <button class="btn-log" id="btnCloseAnalytics">← back to the list</button>
       </div>
       <div class="an-grid" id="anGrid"></div>
     </section>
@@ -318,8 +313,108 @@ const state = {
   types: { user:true, assistant:true, tool:true },
   query: "", hideDone:true, hideArchived:true, collapseAll:false,
   backupInfo:{}, collapsedSources:{}, groupMode:"project",
+  lang:"en",
   progress: {}  // { [sessionId]: { done:bool, turns:{ [i]:bool } } }
 };
+
+/* ---------- i18n ---------- */
+const I18N = {
+  en: {
+    doc_title:"Build Log · Session viewer",
+    sub_default:"local viewer · 100% offline",
+    last_backup:"last backup",
+    save_progress:"Save progress", load:"Load", open_folder:"Open folder",
+    analytics:"📊 analytics", runs:"⟳ runs", search:"Search…",
+    show_blocks:"Show blocks", you:"You", assistant:"Assistant", tools:"Tools",
+    view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
+    collapse_turns:"Collapse all turns", group_by:"Group by:", by_tool:"Tool", by_project:"Project",
+    runs_title:"Latest backup runs", runs_empty:"No record yet. The backup writes here every time it runs.",
+    empty_title:"Your build log",
+    empty_p:"Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.",
+    empty_how_t:"How to start",
+    empty_how:"1. Click <b>Open folder</b>.<br>2. Pick the folder with your <code>markdown-*</code> backups (it reads every subfolder).<br>3. Progress is saved automatically; use <b>Save progress</b> for a file backup.<br><br>Everything runs on your machine. Nothing is uploaded.",
+    an_title:"Analytics", back_to_list:"← back to the list",
+    measure_by:"Measure by:", conversations_btn:"Conversations", turns_btn:"Turns",
+    summary:"Summary", n_conversations:"conversations", n_tools:"tools", n_projects:"projects", n_archived:"archived", n_active:"active",
+    activity_over_time:"Activity over time", no_data_sources:"No data for the selected sources.",
+    daily_activity:"Daily activity (last year)", no_data:"No data. Load a folder first.",
+    day:"Day", week:"Week", month:"Month", dow:["","Mon","","Wed","","Fri",""],
+    metric_conv:"conversations", metric_turns:"turns",
+    top_projects:"Top 5 projects by", no_activity:"no activity", total:"total", period_total:"period total",
+    archived_badge:"archived", n_turns:"turns", mark_reviewed:"Mark as reviewed",
+    project_pill:"Project", copy_conv:"Copy conversation",
+    mark_conv:"Mark conversation as reviewed", unmark_conv:"Unmark conversation",
+    collapse_expand:"Collapse/expand all", copy:"copy", copied:"✓ copied",
+    mark_turn:"Mark turn", copy_turn:"Copy this turn", tool_tag:"Tool",
+    no_turns_match:"No turn matches the active filters.", no_results:"No results.",
+    reading:"Reading", sessions_word:"sessions", no_md:"No <b>.md</b> files found in that folder.",
+    bad_progress:"Couldn't read that progress file.",
+  },
+  es: {
+    doc_title:"Build Log · Visor de sesiones",
+    sub_default:"visor local · 100% offline",
+    last_backup:"último respaldo",
+    save_progress:"Guardar progreso", load:"Cargar", open_folder:"Abrir carpeta",
+    analytics:"📊 analytics", runs:"⟳ corridas", search:"Buscar…",
+    show_blocks:"Mostrar bloques", you:"Tú", assistant:"Asistente", tools:"Herramientas",
+    view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
+    collapse_turns:"Colapsar todos los turnos", group_by:"Agrupar por:", by_tool:"Herramienta", by_project:"Proyecto",
+    runs_title:"Últimas corridas del respaldo", runs_empty:"Sin registro todavía. El respaldo escribe acá cada vez que corre.",
+    empty_title:"Tu registro de construcción",
+    empty_p:"Abrí la carpeta que contiene tus markdowns. Se agrupan por fuente y proyecto, con fecha, y podés marcar lo revisado.",
+    empty_how_t:"Cómo empezar",
+    empty_how:"1. Tocá <b>Abrir carpeta</b>.<br>2. Elegí la carpeta con tus <code>markdown-*</code> (lee todas las subcarpetas).<br>3. El progreso se guarda solo; usá <b>Guardar progreso</b> para un respaldo en archivo.<br><br>Todo corre en tu equipo. Nada se sube a internet.",
+    an_title:"Analytics", back_to_list:"← volver a la lista",
+    measure_by:"Medir por:", conversations_btn:"Conversaciones", turns_btn:"Turnos",
+    summary:"Resumen", n_conversations:"conversaciones", n_tools:"herramientas", n_projects:"proyectos", n_archived:"archivadas", n_active:"activas",
+    activity_over_time:"Actividad en el tiempo", no_data_sources:"Sin datos para las fuentes seleccionadas.",
+    daily_activity:"Actividad diaria (último año)", no_data:"Sin datos. Cargá una carpeta primero.",
+    day:"Día", week:"Semana", month:"Mes", dow:["","Lun","","Mié","","Vie",""],
+    metric_conv:"conversaciones", metric_turns:"turnos",
+    top_projects:"Top 5 proyectos por", no_activity:"sin actividad", total:"total", period_total:"total del período",
+    archived_badge:"archivada", n_turns:"turnos", mark_reviewed:"Marcar como revisada",
+    project_pill:"Proyecto", copy_conv:"Copiar conversación",
+    mark_conv:"Marcar conversación como revisada", unmark_conv:"Desmarcar conversación",
+    collapse_expand:"Colapsar/expandir todos", copy:"copiar", copied:"✓ copiado",
+    mark_turn:"Marcar turno", copy_turn:"Copiar este turno", tool_tag:"Herr.",
+    no_turns_match:"Ningún turno coincide con los filtros activos.", no_results:"Sin resultados.",
+    reading:"Leyendo", sessions_word:"sesiones", no_md:"No encontré archivos <b>.md</b> en esa carpeta.",
+    bad_progress:"No pude leer ese archivo de progreso.",
+  }
+};
+function t(k){ const d=I18N[state.lang]||I18N.en; return (k in d)?d[k]:(I18N.en[k]!==undefined?I18N.en[k]:k); }
+const T = t;  // alias for scopes where `t` is shadowed (e.g. turn loops)
+function detectLang(){
+  try{ const saved=localStorage.getItem("buildlog_lang"); if(saved==="en"||saved==="es") return saved; }catch(e){}
+  return (navigator.language||"en").toLowerCase().startsWith("es") ? "es" : "en";
+}
+function setLang(l){
+  state.lang=l;
+  try{ localStorage.setItem("buildlog_lang", l); }catch(e){}
+  document.documentElement.lang=l;
+  applyStaticI18n();
+  // re-render dynamic parts
+  renderBackupStamp(); renderGlobalCount(); renderRunLog();
+  if(state.sessions.length){ renderSidebar(); if(state.activeId) openSession(state.activeId); }
+  if(document.getElementById("analytics").style.display==="block") renderAnalytics();
+  const lb=document.getElementById("btnLang"); if(lb) lb.textContent = l==="en" ? "🌐 ES" : "🌐 EN";
+}
+function applyStaticI18n(){
+  document.title=t("doc_title");
+  const set=(id,val,html)=>{ const el=document.getElementById(id); if(el){ if(html) el.innerHTML=val; else el.textContent=val; } };
+  set("lbl-show-blocks",t("show_blocks"));
+  set("lbl-chip-user",t("you")); set("lbl-chip-assistant",t("assistant")); set("lbl-chip-tool",t("tools"));
+  set("lbl-view",t("view"));
+  set("lbl-hide-done",t("hide_done")); set("lbl-hide-archived",t("hide_archived")); set("lbl-collapse-turns",t("collapse_turns"));
+  set("lbl-group-by",t("group_by")); set("gtSource",t("by_tool")); set("gtProject",t("by_project"));
+  set("exportBtn",t("save_progress")); set("importBtn",t("load")); set("openBtn",t("open_folder"));
+  set("btnAnalytics",t("analytics")); set("btnLog",t("runs"));
+  const s=document.getElementById("search"); if(s) s.placeholder=t("search");
+  set("lbl-runs-title",t("runs_title"));
+  set("an-title",t("an_title")); set("btnCloseAnalytics",t("back_to_list"));
+  set("empty-title",t("empty_title")); set("empty-p",t("empty_p"));
+  set("empty-how",`<b>${t("empty_how_t")}</b><br>${t("empty_how")}`,true);
+}
 
 /* ---------- persistencia ---------- */
 function loadProgress(){
@@ -352,11 +447,11 @@ window.addEventListener("resize", setStickyOffsets);
 function renderRunLog(){
   const body=document.getElementById("logBody"); if(!body) return;
   const log=state.runLog||[];
-  if(!log.length){ body.innerHTML=`<div class="log-empty">Sin registro todavía. El respaldo escribe acá cada vez que corre.</div>`; return; }
+  if(!log.length){ body.innerHTML=`<div class="log-empty">${t("runs_empty")}</div>`; return; }
   const fuentes=["claude","codex","cowork","opencode","cursor"];
   body.innerHTML=log.map((e,idx)=>{
-    const fecha=formatDate(e.fecha,true)||e.fecha||"?";
-    const det=Object.entries(e).filter(([k])=>k!=="fecha"&&k!=="total").map(([k,v])=>`${k} ${v}`).join(" · ");
+    const fecha=formatDate(e.date||e.fecha,true)||e.date||e.fecha||"?";
+    const det=Object.entries(e).filter(([k])=>k!=="fecha"&&k!=="date"&&k!=="total").map(([k,v])=>`${k} ${v}`).join(" · ");
     // delta respecto a la corrida siguiente en el historial (la anterior en el tiempo)
     const prev=log[idx+1];
     let deltaTotal="", deltaSrc="";
@@ -383,19 +478,22 @@ function renderGlobalCount(){
   const arch=state.sessions.filter(s=>s.archivada).length;
   const act=total-arch;
   const rev=state.sessions.filter(s=>prog(s.id).done).length;
-  el.innerHTML=`<span class="gc-total">${total}</span> conversaciones <span class="gc-split">· ${act} activas · ${arch} archivadas · ${rev} revisadas</span>`;
+  const w = state.lang==="es"
+    ? `conversaciones <span class="gc-split">· ${act} activas · ${arch} archivadas · ${rev} revisadas</span>`
+    : `conversations <span class="gc-split">· ${act} active · ${arch} archived · ${rev} reviewed</span>`;
+  el.innerHTML=`<span class="gc-total">${total}</span> ${w}`;
 }
 
 function renderBackupStamp(){
   const el=document.getElementById("backupStamp"); if(!el) return;
   const info=state.backupInfo||{};
-  const fechas=Object.values(info).map(v=>v&&v.generado).filter(Boolean);
-  if(!fechas.length){ el.textContent="claude code · codex · cowork"; el.title=""; return; }
+  const fechas=Object.values(info).map(v=>v&&(v.generated||v.generado)).filter(Boolean);
+  if(!fechas.length){ el.textContent=t("sub_default"); el.title=""; return; }
   fechas.sort();
   const ultima=fechas[fechas.length-1];
-  el.textContent="último respaldo · "+formatDate(ultima,true);
-  // detalle por fuente en el tooltip
-  const det=Object.entries(info).map(([k,v])=>`${k}: ${formatDate(v.generado,true)} (${v.conversaciones||0})`).join("\n");
+  el.textContent=t("last_backup")+" · "+formatDate(ultima,true);
+  // per-source detail in the tooltip
+  const det=Object.entries(info).map(([k,v])=>`${k}: ${formatDate(v.generated||v.generado,true)} (${v.conversations||v.conversaciones||0})`).join("\n");
   el.title=det;
 }
 
@@ -434,9 +532,10 @@ function parseMeta(text){
   const meta = {fecha:"", proyecto:"", fuente:"", archivada:false};
   if(m){
     const body=m[1];
-    const get=(k)=>{ const r=body.match(new RegExp(k+"\\s*:\\s*([^|]+?)\\s*(\\||$)")); return r?r[1].trim():""; };
-    meta.fecha=get("fecha"); meta.proyecto=get("proyecto"); meta.fuente=get("fuente");
-    meta.archivada = /archivada\s*:\s*true/i.test(body);
+    // accept English (date/project/source/archived) and legacy Spanish keys
+    const get=(...keys)=>{ for(const k of keys){ const r=body.match(new RegExp(k+"\\s*:\\s*([^|]+?)\\s*(\\||$)")); if(r&&r[1].trim()) return r[1].trim(); } return ""; };
+    meta.fecha=get("date","fecha"); meta.proyecto=get("project","proyecto"); meta.fuente=get("source","fuente");
+    meta.archivada = /(archived|archivada)\s*:\s*true/i.test(body);
   }
   return meta;
 }
@@ -456,7 +555,7 @@ function parseTurns(text){
   };
   for(const l of lines){
     const head=l.match(/^###\s+(.+?)\s*$/);
-    if(head){ flush(); const who=head[1].toLowerCase(); speaker=(who.includes("tú")||who.includes("tu")||who.includes("user"))?"user":"assistant"; continue; }
+    if(head){ flush(); const who=head[1].toLowerCase(); speaker=(who.includes("tú")||who.includes("tu")||who.includes("you")||who.includes("user"))?"user":"assistant"; continue; }
     if(/^#\s+/.test(l)) continue;        // título
     if(/^<!--/.test(l)) continue;        // metadata
     if(speaker===null) continue;
@@ -471,7 +570,7 @@ function splitTools(md, speaker){
   const flushText=()=>{ const t=textbuf.join("\n").trim(); if(t) out.push({type:speaker, md:t}); textbuf=[]; };
   while(i<lines.length){
     const l=lines[i];
-    if(/^\s*\[(herramienta|resultado)\b/i.test(l)){
+    if(/^\s*\[(tool|result|herramienta|resultado)\b/i.test(l)){
       flushText();
       const label=l.trim().replace(/^\[/,"").replace(/\]\s*$/,"").trim();
       let body=[]; i++;
@@ -504,8 +603,8 @@ async function handleFiles(fileList){
   for(const f of Array.from(fileList).filter(f=>/(^|\/)log\.json$/i.test(f.webkitRelativePath||f.name))){
     try{ const j=JSON.parse(await f.text()); if(Array.isArray(j)) state.runLog=j; }catch(e){}
   }
-  if(!files.length){ document.getElementById("reader").innerHTML=`<div class="loadwrap">No encontré archivos <b>.md</b> en esa carpeta.</div>`; return; }
-  document.getElementById("reader").innerHTML=`<div class="loadwrap">Leyendo ${files.length} sesiones…</div>`;
+  if(!files.length){ document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("no_md")}</div>`; return; }
+  document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("reading")} ${files.length} ${t("sessions_word")}…</div>`;
   state.sessions=[]; state.projects=new Map(); state.sources=new Map();
   for(const f of files){
     const rel=f.webkitRelativePath||f.name;
@@ -578,7 +677,7 @@ const AN={ gran:"month", srcOn:{}, metric:"conv" };  // metric: 'conv' o 'turns'
 
 // peso de una sesión según la métrica activa: 1 conversación, o su cantidad de turnos
 function sesPeso(s){ return AN.metric==="turns" ? (s.turns?s.turns.length:0) : 1; }
-function metricLabel(){ return AN.metric==="turns" ? "turnos" : "conversaciones"; }
+function metricLabel(){ return AN.metric==="turns" ? t("metric_turns") : t("metric_conv"); }
 
 function showAnalytics(){
   document.getElementById("reader").style.display="none";
@@ -605,12 +704,12 @@ function periodKey(iso, gran){
 function renderAnalytics(){
   const grid=document.getElementById("anGrid"); grid.innerHTML="";
   const sesiones=state.sessions||[];
-  if(!sesiones.length){ grid.innerHTML=`<div class="an-card">Sin datos. Cargá una carpeta primero.</div>`; return; }
-  // toggle global de métrica
+  if(!sesiones.length){ grid.innerHTML=`<div class="an-card">${t("no_data")}</div>`; return; }
+  // global metric toggle
   const mc=document.createElement("div"); mc.className="an-metric";
-  mc.innerHTML=`<span class="am-label">Medir por:</span>
-    <button class="am-btn ${AN.metric==='conv'?'active':''}" data-m="conv">Conversaciones</button>
-    <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">Turnos</button>`;
+  mc.innerHTML=`<span class="am-label">${t("measure_by")}</span>
+    <button class="am-btn ${AN.metric==='conv'?'active':''}" data-m="conv">${t("conversations_btn")}</button>
+    <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">${t("turns_btn")}</button>`;
   mc.querySelectorAll(".am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.metric=b.dataset.m; renderAnalytics(); }));
   grid.appendChild(mc);
   // orden: resumen, heatmap, top, actividad
@@ -646,7 +745,7 @@ function setupTooltips(){
 function cardStackedArea(sesiones){
   const card=document.createElement("div"); card.className="an-card";
   const fuentes=[...state.sources.keys()];
-  card.innerHTML=`<h3>Actividad en el tiempo</h3>`;
+  card.innerHTML=`<h3>${t("activity_over_time")}</h3>`;
   // controles
   const ctrl=document.createElement("div"); ctrl.className="an-controls";
   for(const f of fuentes){
@@ -657,7 +756,7 @@ function cardStackedArea(sesiones){
     ctrl.appendChild(t);
   }
   const gran=document.createElement("div"); gran.className="an-gran";
-  for(const [g,lbl] of [["day","Día"],["week","Semana"],["month","Mes"]]){
+  for(const [g,lbl] of [["day",t("day")],["week",t("week")],["month",t("month")]]){
     const b=document.createElement("button"); b.textContent=lbl;
     if(AN.gran===g) b.className="active";
     b.addEventListener("click",()=>{ AN.gran=g; renderAnalytics(); });
@@ -676,7 +775,7 @@ function cardStackedArea(sesiones){
     periodos.get(k)[s.fuente]=(periodos.get(k)[s.fuente]||0)+sesPeso(s);
   }
   const keys=[...periodos.keys()].sort();
-  if(!keys.length){ const p=document.createElement("p"); p.textContent="Sin datos para las fuentes seleccionadas."; card.appendChild(p); return card; }
+  if(!keys.length){ const p=document.createElement("p"); p.textContent=t("no_data_sources"); card.appendChild(p); return card; }
 
   // dimensiones
   const W=860,H=280,padL=38,padB=40,padT=10,padR=10;
@@ -709,7 +808,7 @@ function cardStackedArea(sesiones){
     keys.forEach((k,i)=>{
       const totalK=activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0);
       const det=activos.filter(f=>periodos.get(k)[f]).map(f=>`<span class='tt-dot' style='background:${srcColor(f)}'></span>${niceSource(f)}: <b>${periodos.get(k)[f]}</b>`).join("<br>");
-      svg+=`<rect x="${xAt(i)-3}" y="${padT}" width="6" height="${plotH}" fill="transparent" data-tip="<b>${k}</b><br>${det||'sin actividad'}<br><span style='opacity:.7'>total: ${totalK} ${metricLabel()}</span>"/>`;
+      svg+=`<rect x="${xAt(i)-3}" y="${padT}" width="6" height="${plotH}" fill="transparent" data-tip="<b>${k}</b><br>${det||t('no_activity')}<br><span style='opacity:.7'>${t('total')}: ${totalK} ${metricLabel()}</span>"/>`;
     });
   } else {
     // BARRAS APILADAS (pocos puntos: valores claros)
@@ -720,7 +819,7 @@ function cardStackedArea(sesiones){
       for(const f of activos){
         const v=periodos.get(k)[f]||0; if(!v) continue;
         const h=plotH*v/maxY; const y=padT+plotH-acc-h;
-        svg+=`<rect x="${x+1}" y="${y}" width="${Math.max(bw-2,1)}" height="${h}" fill="${srcColor(f)}" data-tip="<span class='tt-dot' style='background:${srcColor(f)}'></span><b>${niceSource(f)}</b><br>${k}: <b>${v}</b> ${metricLabel()}<br><span style='opacity:.7'>total del período: ${totalK}</span>"/>`;
+        svg+=`<rect x="${x+1}" y="${y}" width="${Math.max(bw-2,1)}" height="${h}" fill="${srcColor(f)}" data-tip="<span class='tt-dot' style='background:${srcColor(f)}'></span><b>${niceSource(f)}</b><br>${k}: <b>${v}</b> ${metricLabel()}<br><span style='opacity:.7'>${t('period_total')}: ${totalK}</span>"/>`;
         acc+=h;
       }
     });
@@ -739,7 +838,7 @@ function cardStackedArea(sesiones){
 // 3: top 5 proyectos
 function cardTopProjects(sesiones){
   const card=document.createElement("div"); card.className="an-card";
-  card.innerHTML=`<h3>Top 5 proyectos por ${metricLabel()}</h3>`;
+  card.innerHTML=`<h3>${t("top_projects")} ${metricLabel()}</h3>`;
   const byProj=new Map();
   for(const s of sesiones){ byProj.set(s.project,(byProj.get(s.project)||0)+sesPeso(s)); }
   const top=[...byProj.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -761,7 +860,7 @@ function cardTopProjects(sesiones){
 // 5: heatmap estilo GitHub del último año
 function cardHeatmap(sesiones){
   const card=document.createElement("div"); card.className="an-card";
-  card.innerHTML=`<h3>Actividad diaria (último año)</h3>`;
+  card.innerHTML=`<h3>${t("daily_activity")}</h3>`;
   const counts=new Map();
   for(const s of sesiones){ const k=periodKey(s.fecha,"day"); if(k) counts.set(k,(counts.get(k)||0)+sesPeso(s)); }
   const hoy=new Date(); const inicio=new Date(hoy); inicio.setDate(inicio.getDate()-364);
@@ -779,7 +878,7 @@ function cardHeatmap(sesiones){
     d.setDate(d.getDate()+1); if(d.getDay()===0) col++;
   }
   // etiquetas de día
-  ["","Lun","","Mié","","Vie",""].forEach((lbl,i)=>{ if(lbl) svg+=`<text class="an-axis" x="2" y="${i*(cell+gap)+cell}">${lbl}</text>`; });
+  t("dow").forEach((lbl,i)=>{ if(lbl) svg+=`<text class="an-axis" x="2" y="${i*(cell+gap)+cell}">${lbl}</text>`; });
   svg+=`</svg>`;
   const div=document.createElement("div"); div.innerHTML=svg; card.appendChild(div);
   return card;
@@ -788,13 +887,13 @@ function cardHeatmap(sesiones){
 // 6: resumen archivadas/activas + totales
 function cardSummary(sesiones){
   const card=document.createElement("div"); card.className="an-card";
-  card.innerHTML=`<h3>Resumen</h3>`;
+  card.innerHTML=`<h3>${t("summary")}</h3>`;
   const total=sesiones.length;
   const arch=sesiones.filter(s=>s.archivada).length;
   const proyectos=new Set(sesiones.map(s=>s.project)).size;
   const fuentes=state.sources.size;
   const cont=document.createElement("div"); cont.className="an-summary";
-  const stats=[[total,"conversaciones"],[fuentes,"herramientas"],[proyectos,"proyectos"],[arch,"archivadas"],[total-arch,"activas"]];
+  const stats=[[total,t("n_conversations")],[fuentes,t("n_tools")],[proyectos,t("n_projects")],[arch,t("n_archived")],[total-arch,t("n_active")]];
   cont.innerHTML=stats.map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
   card.appendChild(cont);
   return card;
@@ -804,13 +903,13 @@ function makeSessionLi(s){
   const pr=prog(s.id);
   const li=document.createElement("div");
   li.className="sess"+(s.id===state.activeId?" active":"")+(pr.done?" done":"");
-  const arch = s.archivada?`<span class="badge-arch">archivada</span>`:"";
+  const arch = s.archivada?`<span class="badge-arch">${t("archived_badge")}</span>`:"";
   const tc=s.turns.length;
-  // en modo proyecto, mostrar de qué herramienta viene cada sesión
+  // in project mode, show which tool each session comes from
   const srcTag = state.groupMode==="project" ? `<span class="src-mini src-${escapeHtml(s.fuente)}">${escapeHtml(niceSource(s.fuente))}</span>` : "";
-  li.innerHTML=`<input type="checkbox" class="sess-check" ${pr.done?"checked":""} title="Marcar como revisada">
+  li.innerHTML=`<input type="checkbox" class="sess-check" ${pr.done?"checked":""} title="${t("mark_reviewed")}">
     <span class="sess-body"><span class="sess-title">${escapeHtml(s.title)}</span>
-    <span class="meta"><span>${escapeHtml(formatDate(s.fecha,false))}</span><span>${tc} turnos</span>${srcTag}${arch}</span></span>`;
+    <span class="meta"><span>${escapeHtml(formatDate(s.fecha,false))}</span><span>${tc} ${t("n_turns")}</span>${srcTag}${arch}</span></span>`;
   li.querySelector(".sess-check").addEventListener("change",e=>{ e.stopPropagation(); pr.done=e.target.checked; saveProgress(); renderSidebar(); renderGlobalCount(); });
   li.querySelector(".sess-body").addEventListener("click",()=>openSession(s.id));
   return li;
@@ -889,7 +988,7 @@ function renderSidebar(){
     if(!collapsed) for(const el of subEls) grp.appendChild(el);
     root.appendChild(grp);
   }
-  if(!root.children.length) root.innerHTML=`<div style="padding:18px;color:#7FA39D;font-size:13px">Sin resultados.</div>`;
+  if(!root.children.length) root.innerHTML=`<div style="padding:18px;color:#7FA39D;font-size:13px">${t("no_results")}</div>`;
 }
 
 /* ---------- reader ---------- */
@@ -903,16 +1002,16 @@ function openSession(id){
   s.turns.forEach((t,idx)=>{
     if(!state.types[t.type]) return;
     const asstName = s.fuente==="codex"?"Codex":s.fuente==="opencode"?"OpenCode":s.fuente==="cursor"?"Cursor":"Claude";
-    const tagText=t.type==="user"?"Tú":t.type==="assistant"?asstName:"Herr.";
+    const tagText=t.type==="user"?T("you"):t.type==="assistant"?asstName:T("tool_tag");
     const tdone=!!pr.turns[idx];
     const collapsed=state.collapseAll;
     let body=(t.type==="tool"&&t.label)?`<span class="toollabel">${escapeHtml(t.label)}</span>`+renderMarkdown(t.md||""):renderMarkdown(t.md||"");
     turnsHtml+=`<div class="turn ${collapsed?'collapsed':''} ${tdone?'done':''}" data-type="${t.type}" data-idx="${idx}">
       <div class="turn-head">
-        <input type="checkbox" class="tcheck" ${tdone?'checked':''} title="Marcar turno">
+        <input type="checkbox" class="tcheck" ${tdone?'checked':''} title="${T('mark_turn')}">
         <span class="tag">${tagText}</span>
         <span class="preview">${escapeHtml(previewText(t))}</span>
-        <button class="turn-copy" data-idx="${idx}" title="Copiar este turno">copiar</button>
+        <button class="turn-copy" data-idx="${idx}" title="${T('copy_turn')}">${T('copy')}</button>
       </div>
       <div class="turn-body">${body}</div>
     </div>`;
@@ -920,27 +1019,27 @@ function openSession(id){
 
   reader.innerHTML=`
     <div class="countbar">
-      <span><span class="n">${counts.user}</span> tú</span>
+      <span><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</span>
       <span><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</span>
-      <span><span class="n">${counts.tool}</span> herramientas</span>
-      ${s.archivada?'<span class="n" style="color:#9a7b2e">· archivada</span>':''}
+      <span><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</span>
+      ${s.archivada?`<span class="n" style="color:#9a7b2e">· ${t("archived_badge")}</span>`:''}
     </div>
     <article class="doc">
       <div class="doc-head">
         <h1>${escapeHtml(s.title)}</h1>
         <div class="crumbs">
           <span class="pill src-pill src-${escapeHtml(s.fuente)}">${escapeHtml(niceSource(s.fuente))}</span>
-          <span class="pill">Proyecto · <b>${escapeHtml(s.project)}</b></span>
+          <span class="pill">${t("project_pill")} · <b>${escapeHtml(s.project)}</b></span>
           <span class="pill"><b>${escapeHtml(formatDate(s.fecha,true))}</b></span>
-          <span class="pill"><b>${s.turns.length}</b> turnos</span>
+          <span class="pill"><b>${s.turns.length}</b> ${t("n_turns")}</span>
         </div>
         <div class="doc-actions">
-          <button class="mini" id="copyConv">Copiar conversación</button>
-          <button class="mini" id="markDone">${pr.done?'Desmarcar conversación':'Marcar conversación como revisada'}</button>
-          <button class="mini" id="toggleAllTurns">Colapsar/expandir todos</button>
+          <button class="mini" id="copyConv">${t("copy_conv")}</button>
+          <button class="mini" id="markDone">${pr.done?t("unmark_conv"):t("mark_conv")}</button>
+          <button class="mini" id="toggleAllTurns">${t("collapse_expand")}</button>
         </div>
       </div>
-      ${turnsHtml||`<div class="loadwrap">Ningún turno coincide con los filtros activos.</div>`}
+      ${turnsHtml||`<div class="loadwrap">${t("no_turns_match")}</div>`}
     </article>`;
   reader.scrollTop=0;
 
@@ -970,13 +1069,14 @@ function openSession(id){
 }
 
 function turnToText(t,s){
-  const who = t.type==="user" ? "Tú" : t.type==="assistant" ? (s.fuente==="claude-code"||s.fuente==="cowork"?"Claude":niceSource(s.fuente)) : "Herramienta";
+  const toolWord = state.lang==="es" ? "Herramienta" : "Tool";
+  const who = t.type==="user" ? T("you") : t.type==="assistant" ? (s.fuente==="claude-code"||s.fuente==="cowork"?"Claude":niceSource(s.fuente)) : toolWord;
   let body = (t.type==="tool"&&t.label) ? (t.label+"\n"+(t.md||"")) : (t.md||"");
   return `### ${who}\n${body.trim()}`;
 }
 
 function copyText(txt, btn){
-  const done=()=>{ if(btn){ const o=btn.textContent; btn.textContent="✓ copiado"; btn.classList.add("ok"); setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok");},1200); } };
+  const done=()=>{ if(btn){ const o=btn.textContent; btn.textContent=t("copied"); btn.classList.add("ok"); setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok");},1200); } };
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done));
   } else { fallbackCopy(txt,done); }
@@ -999,7 +1099,7 @@ function setGroupMode(mode){
   state.groupMode=mode;
   document.getElementById("gtSource").classList.toggle("active",mode==="source");
   document.getElementById("gtProject").classList.toggle("active",mode==="project");
-  // al cambiar de modo, colapsar todos los grupos del nuevo modo
+  // when switching mode, collapse all groups of the new mode
   state.collapsedSources={};
   if(mode==="source"){ for(const f of state.sources.keys()) state.collapsedSources["src:"+f]=true; }
   else {
@@ -1011,6 +1111,7 @@ function setGroupMode(mode){
 }
 document.getElementById("gtSource").addEventListener("click",()=>setGroupMode("source"));
 document.getElementById("gtProject").addEventListener("click",()=>setGroupMode("project"));
+document.getElementById("btnLang").addEventListener("click",()=>setLang(state.lang==="en"?"es":"en"));
 document.getElementById("btnAnalytics").addEventListener("click",showAnalytics);
 document.getElementById("btnCloseAnalytics").addEventListener("click",hideAnalytics);
 document.getElementById("btnLog").addEventListener("click",()=>{
@@ -1027,16 +1128,17 @@ document.getElementById("menuToggle").addEventListener("click",()=>document.getE
 document.getElementById("exportBtn").addEventListener("click",()=>{
   const blob=new Blob([JSON.stringify(state.progress,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download="build-log-progreso.json"; a.click();
+  a.download="build-log-progress.json"; a.click();
 });
 document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
 document.getElementById("importFile").addEventListener("change",async e=>{
   const f=e.target.files[0]; if(!f)return;
   try{ state.progress=JSON.parse(await f.text()); saveProgress(); renderSidebar(); renderGlobalCount(); if(state.activeId)openSession(state.activeId); }
-  catch(err){ alert("No pude leer ese archivo de progreso."); }
+  catch(err){ alert(t("bad_progress")); }
 });
 
 loadProgress();
+setLang(detectLang());
 </script>
 </body>
 </html>
