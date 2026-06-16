@@ -12,21 +12,39 @@ Todo corre **localmente en tu Mac**. Nada se sube a ningún lado.
 
 ## Por qué
 
-**Tus herramientas de IA no guardan tu historial para siempre — y casi nunca te
-enterás cuando lo perdés.**
+**Por defecto, tus herramientas de IA no conservan tu historial para siempre — y
+rara vez te enterás cuando lo perdés.**
 
-- **Codex** solo lista las conversaciones recientes; las viejas dejan de
-  aparecer, aunque por un tiempo sigan en disco.
-- **Claude Code** hace limpiezas periódicas de sesiones viejas: un día están, y
-  al siguiente ya no.
-- Si reinstalás una herramienta, cambiás de máquina o se corrompe una base de
-  datos, ese historial se va **sin aviso**.
+- **Claude Code** limpia transcripts viejos pasado un tiempo (por defecto, según
+  la última actividad). Es **configurable**: subiendo `cleanupPeriodDays` en
+  `~/.claude/settings.json` podés extender mucho la retención o, en la práctica,
+  desactivarla. Pero si no lo tocaste, estás en el default y las sesiones viejas
+  desaparecen.
+- **Codex** solo lista las conversaciones recientes; las viejas dejan de aparecer
+  aunque por un tiempo sigan en disco.
+- Cada herramienta tiene su propia política, su propio formato y su propio
+  alcance. Y si reinstalás, cambiás de máquina, corrés un `rm` o se corrompe una
+  base de datos, ese historial se va **sin aviso** y sin papelera.
 
-Esas conversaciones suelen tener **decisiones de diseño, el porqué de cómo se
-hizo algo, y contexto que tu código no registra**. Este proyecto las copia a
-Markdown **antes de que desaparezcan**, de forma incremental y acumulativa: una
-vez respaldada, una conversación **nunca se borra de tu copia**, aunque la
-herramienta de origen la elimine.
+> **Nota honesta:** si usás *solo* Claude Code y subís `cleanupPeriodDays`, gran
+> parte del borrado automático deja de ser un problema. Aun así, esto sigue
+> aportando lo que un setting de retención no te da (ver abajo).
+
+Lo que este proyecto te da, más allá de la retención de cada herramienta:
+
+- **Una copia durable y aparte.** Acumulativa: una vez respaldada, una
+  conversación **nunca se borra de tu copia**, aunque la herramienta de origen la
+  elimine, reinstales o migres de máquina.
+- **Un archivo único multi-herramienta.** Claude Code, Codex, Cowork, OpenCode y
+  Cursor juntos en un mismo lugar y formato, no cinco silos con sus propias
+  reglas.
+- **Algo navegable de verdad.** Markdown legible + un visor con búsqueda,
+  agrupación, filtros, analytics y marcado de revisadas — no `.jsonl`/SQLite
+  crudos.
+
+Esas conversaciones suelen guardar **decisiones de diseño, el porqué de cómo se
+hizo algo, y contexto que tu código no registra**. La idea es tenerlo a salvo y a
+mano.
 
 Y como son tus datos privados, **todo corre local**: los scripts solo leen tus
 archivos y escriben Markdown en tu disco, el visor es un HTML estático. No hay
