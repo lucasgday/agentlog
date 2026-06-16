@@ -111,6 +111,13 @@ path as the first argument to store the markdowns elsewhere:
 ./update-backup.sh ~/my-backups
 ```
 
+**Options** (run `./update-backup.sh --help` for the full list):
+
+```bash
+./update-backup.sh --only claude,codex   # only some sources
+./update-backup.sh --dry-run             # preview what would change, write nothing
+```
+
 You can also **double-click** `update-backup.command`.
 
 ### Enable the automatic backup (daily, 12:00)

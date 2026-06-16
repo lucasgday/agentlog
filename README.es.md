@@ -114,6 +114,13 @@ como primer argumento si querés guardar los markdowns en otro lado:
 ./update-backup.sh ~/mis-respaldos
 ```
 
+**Opciones** (corré `./update-backup.sh --help` para la lista completa):
+
+```bash
+./update-backup.sh --only claude,codex   # solo algunas fuentes
+./update-backup.sh --dry-run             # previsualiza qué cambiaría, no escribe nada
+```
+
 También podés hacer **doble clic** en `update-backup.command`.
 
 ### Activar el respaldo automático (diario, 12:00)

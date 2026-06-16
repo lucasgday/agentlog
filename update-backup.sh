@@ -2,7 +2,7 @@
 # update-backup.sh
 # Incremental, cumulative backup of LLM conversations (Claude Code, Codex, Cowork, OpenCode, Cursor).
 # - Base = the folder where this script lives (the whole folder can be moved).
-# - Optional override: pass a path as the first argument.
+# - Optional override: pass a path as a positional argument.
 # - Incremental: only processes .jsonl that are new or changed in size since the last run.
 # - Cumulative: never deletes already-generated markdowns, even if the source removes them (cleanup).
 # - Archive sync (Codex): if a session moved to archived_sessions, marks its .md as archived:true.
@@ -12,7 +12,75 @@ set -uo pipefail
 
 # ---------- base location ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE="${1:-$SCRIPT_DIR}"           # optional override via argument
+
+# ---------- options ----------
+ONLY=""        # empty = all sources; otherwise a comma list: claude,codex,cowork,opencode,cursor
+DRY=0          # 1 = dry-run: report what would be processed, write nothing
+BASE=""        # output folder (defaults to SCRIPT_DIR)
+
+print_help() {
+  cat <<EOF
+update-backup.sh — back up your coding-agent conversations to Markdown.
+
+USAGE:
+  update-backup.sh [OPTIONS] [OUTPUT_DIR]
+
+ARGUMENTS:
+  OUTPUT_DIR        Where the markdown-*/ folders are written.
+                    Default: the folder where this script lives.
+
+OPTIONS:
+  -h, --help        Show this help and exit.
+      --only LIST   Only process these sources (comma-separated).
+                    Valid: claude, codex, cowork, opencode, cursor.
+                    Example: --only claude,codex
+      --dry-run     Show what would be processed without converting or
+                    writing anything (does not touch the sync state).
+
+SOURCES (auto-detected, skipped if absent):
+  claude    ~/.claude/projects/*/*.jsonl
+  codex     ~/.codex/sessions and ~/.codex/archived_sessions
+  cowork    ~/Library/Application Support/Claude/local-agent-mode-sessions
+  opencode  ~/.local/share/opencode/opencode.db
+  cursor    ~/Library/Application Support/Cursor/User/globalStorage/state.vscdb
+
+EXAMPLES:
+  update-backup.sh                       # back up everything here
+  update-backup.sh ~/my-backups          # write markdowns elsewhere
+  update-backup.sh --only claude         # just Claude Code
+  update-backup.sh --dry-run             # preview, change nothing
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) print_help; exit 0;;
+    --dry-run) DRY=1; shift;;
+    --only) ONLY="${2:-}"; shift 2;;
+    --only=*) ONLY="${1#--only=}"; shift;;
+    --) shift; break;;
+    --*) echo "Unknown option: $1" >&2; echo "Try --help." >&2; exit 1;;
+    *) BASE="$1"; shift;;
+  esac
+done
+BASE="${BASE:-$SCRIPT_DIR}"
+
+# validate --only tokens
+if [ -n "$ONLY" ]; then
+  for tok in ${ONLY//,/ }; do
+    case "$tok" in
+      claude|codex|cowork|opencode|cursor) ;;
+      *) echo "Unknown source in --only: '$tok' (valid: claude,codex,cowork,opencode,cursor)" >&2; exit 1;;
+    esac
+  done
+fi
+# want <source> -> 0 if the source should run
+want() {
+  [ -z "$ONLY" ] && return 0
+  case ",$ONLY," in *",$1,"*) return 0;; esac
+  return 1
+}
+
 cd "$BASE" || { echo "Could not enter $BASE"; exit 1; }
 
 STATE="$BASE/.sync-state"          # index of processed sizes (incremental)
@@ -29,17 +97,20 @@ COWORK_DIR="$HOME/Library/Application Support/Claude/local-agent-mode-sessions"
 
 echo "== LLM backup =="
 echo "Base: $BASE"
+[ "$DRY" = "1" ] && echo "(dry-run: nothing will be written)"
+[ -n "$ONLY" ] && echo "(only: $ONLY)"
 echo ""
 
 # Function: is this .jsonl new or changed in size since last time?
-# Stores the size in $STATE/<hash>.size  (hash = encoded path)
+# Stores the size in $STATE/<hash>.size  (hash = encoded path). In dry-run it
+# detects changes but writes nothing.
 need_process() {
   local f="$1" key sz prev
   key=$(echo "$f" | shasum | cut -d' ' -f1)
   sz=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null)
   prev=$(cat "$STATE/$key.size" 2>/dev/null || echo "")
   if [ "$sz" != "$prev" ]; then
-    echo "$sz" > "$STATE/$key.size"
+    [ "$DRY" = "1" ] || echo "$sz" > "$STATE/$key.size"
     return 0   # process
   fi
   return 1     # unchanged, skip
@@ -48,6 +119,7 @@ need_process() {
 # ---------------------------------------------------------------------------
 # SOURCE 1: Claude Code  (~/.claude/projects/*/*.jsonl)
 # ---------------------------------------------------------------------------
+if want claude; then
 if [ -d "$HOME_CLAUDE/projects" ]; then
   echo "-- Claude Code --"
   SRC="$TMP/claude/conversations"
@@ -64,8 +136,8 @@ if [ -d "$HOME_CLAUDE/projects" ]; then
     fi
   done < <(find "$HOME_CLAUDE/projects" -name "*.jsonl" -print0 2>/dev/null)
   if [ "$new" -gt 0 ]; then
-    echo "  $new new/changed sessions → converting"
-    python3 "$PY_CLAUDE" "$SRC" "$BASE/markdown-claude" claude-code "$HOME_CLAUDE/history.jsonl"
+    if [ "$DRY" = "1" ]; then echo "  $new new/changed sessions (dry-run, not converting)";
+    else echo "  $new new/changed sessions → converting"; python3 "$PY_CLAUDE" "$SRC" "$BASE/markdown-claude" claude-code "$HOME_CLAUDE/history.jsonl"; fi
   else
     echo "  no changes"
   fi
@@ -73,10 +145,12 @@ else
   echo "-- Claude Code -- (not found, skipped)"
 fi
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # SOURCE 2: Codex  (~/.codex/sessions and ~/.codex/archived_sessions)
 # ---------------------------------------------------------------------------
+if want codex; then
 if [ -d "$HOME_CODEX/sessions" ] || [ -d "$HOME_CODEX/archived_sessions" ]; then
   echo "-- Codex --"
   IDX="$HOME_CODEX/session_index.jsonl"
@@ -89,8 +163,8 @@ if [ -d "$HOME_CODEX/sessions" ] || [ -d "$HOME_CODEX/archived_sessions" ]; then
       if need_process "$f"; then cp "$f" "$SRC/all/$(basename "$f")"; new=$((new+1)); fi
     done < <(find "$HOME_CODEX/sessions" -name "*.jsonl" -print0 2>/dev/null)
     if [ "$new" -gt 0 ]; then
-      echo "  $new new/changed active → converting"
-      python3 "$PY_CODEX" "$SRC" "$IDX" "$BASE/markdown-codex"
+      if [ "$DRY" = "1" ]; then echo "  $new new/changed active (dry-run, not converting)";
+      else echo "  $new new/changed active → converting"; python3 "$PY_CODEX" "$SRC" "$IDX" "$BASE/markdown-codex"; fi
     else
       echo "  active: no changes"
     fi
@@ -104,14 +178,15 @@ if [ -d "$HOME_CODEX/sessions" ] || [ -d "$HOME_CODEX/archived_sessions" ]; then
       if need_process "$f"; then cp "$f" "$SRC/all/$(basename "$f")"; new=$((new+1)); fi
     done < <(find "$HOME_CODEX/archived_sessions" -name "*.jsonl" -print0 2>/dev/null)
     if [ "$new" -gt 0 ]; then
-      echo "  $new new/changed archived → converting"
-      python3 "$PY_CODEX" "$SRC" "$IDX" "$BASE/markdown-codex" archived
+      if [ "$DRY" = "1" ]; then echo "  $new new/changed archived (dry-run, not converting)";
+      else echo "  $new new/changed archived → converting"; python3 "$PY_CODEX" "$SRC" "$IDX" "$BASE/markdown-codex" archived; fi
     else
       echo "  archived: no changes"
     fi
     # Cheap flag sync: detect sessions that MOVED to archived whose .md still says
     # archived:false. Mark them true without reconverting, and drop active/archived dups.
     # Handles both English ('archived:') and legacy Spanish ('archivada:') metadata.
+    if [ "$DRY" != "1" ]; then
     python3 - "$BASE/markdown-codex" "$HOME_CODEX/archived_sessions" <<'PYEOF'
 import sys, glob, os, re, json
 mddir, archdir = sys.argv[1], sys.argv[2]
@@ -159,15 +234,18 @@ if marked: msg.append(f"{marked} marked archived")
 if removed: msg.append(f"{removed} active duplicates removed")
 if msg: print("  flag sync: "+", ".join(msg))
 PYEOF
+    fi
   fi
 else
   echo "-- Codex -- (not found, skipped)"
 fi
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # SOURCE 3: Cowork  (nested structure; real conversations under .claude/projects)
 # ---------------------------------------------------------------------------
+if want cowork; then
 if [ -d "$COWORK_DIR" ]; then
   echo "-- Cowork --"
   SRC="$TMP/cowork/cowork"; rm -rf "$TMP/cowork"; mkdir -p "$SRC"
@@ -176,8 +254,8 @@ if [ -d "$COWORK_DIR" ]; then
     if need_process "$f"; then cp "$f" "$SRC/$(basename "$f")"; new=$((new+1)); fi
   done < <(find "$COWORK_DIR" -path "*/.claude/projects/*.jsonl" ! -name "audit.jsonl" ! -path "*/subagents/*" -print0 2>/dev/null)
   if [ "$new" -gt 0 ]; then
-    echo "  $new new/changed sessions → converting"
-    python3 "$PY_CLAUDE" "$TMP/cowork" "$BASE/markdown-cowork" cowork "$HOME_CLAUDE/history.jsonl"
+    if [ "$DRY" = "1" ]; then echo "  $new new/changed sessions (dry-run, not converting)";
+    else echo "  $new new/changed sessions → converting"; python3 "$PY_CLAUDE" "$TMP/cowork" "$BASE/markdown-cowork" cowork "$HOME_CLAUDE/history.jsonl"; fi
   else
     echo "  no changes"
   fi
@@ -185,18 +263,20 @@ else
   echo "-- Cowork -- (not found, skipped)"
 fi
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # SOURCE 4: OpenCode  (~/.local/share/opencode/opencode.db, SQLite)
 # Fully reconverted when the DB changed in size (incremental at the DB level).
 # ---------------------------------------------------------------------------
+if want opencode; then
 OPENCODE_DB="$HOME/.local/share/opencode/opencode.db"
 PY_OPENCODE="$SCRIPT_DIR/convert_opencode.py"
 if [ -f "$OPENCODE_DB" ] && [ -f "$PY_OPENCODE" ]; then
   echo "-- OpenCode --"
   if need_process "$OPENCODE_DB"; then
-    echo "  DB changed → converting"
-    python3 "$PY_OPENCODE" "$OPENCODE_DB" "$BASE/markdown-opencode"
+    if [ "$DRY" = "1" ]; then echo "  DB changed (dry-run, not converting)";
+    else echo "  DB changed → converting"; python3 "$PY_OPENCODE" "$OPENCODE_DB" "$BASE/markdown-opencode"; fi
   else
     echo "  no changes"
   fi
@@ -206,18 +286,20 @@ else
   echo "-- OpenCode -- (not found, skipped)"
 fi
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # SOURCE 5: Cursor  (globalStorage/state.vscdb, SQLite with composers + bubbles)
 # The global DB holds the conversations; reconverted if the DB changed in size.
 # ---------------------------------------------------------------------------
+if want cursor; then
 CURSOR_DB="$HOME/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
 PY_CURSOR="$SCRIPT_DIR/convert_cursor.py"
 if [ -f "$CURSOR_DB" ] && [ -f "$PY_CURSOR" ]; then
   echo "-- Cursor --"
   if need_process "$CURSOR_DB"; then
-    echo "  DB changed → converting"
-    python3 "$PY_CURSOR" "$CURSOR_DB" "$BASE/markdown-cursor"
+    if [ "$DRY" = "1" ]; then echo "  DB changed (dry-run, not converting)";
+    else echo "  DB changed → converting"; python3 "$PY_CURSOR" "$CURSOR_DB" "$BASE/markdown-cursor"; fi
   else
     echo "  no changes"
   fi
@@ -227,9 +309,15 @@ else
   echo "-- Cursor -- (not found, skipped)"
 fi
 echo ""
+fi
 
 # clean up temporaries
 rm -rf "$TMP"
+
+if [ "$DRY" = "1" ]; then
+  echo "== Dry-run done (nothing written) =="
+  exit 0
+fi
 
 echo "== Backup updated =="
 echo "Markdowns:"
