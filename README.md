@@ -76,7 +76,8 @@ writes local Markdown. Nothing, raw or derived, leaves your machine.
 |---|---|---|
 | Data leaving your machine | **None** | Derived data uploaded to YC |
 | Hosting | Self-hosted / offline | Cloud (YC) |
-| Output | Durable Markdown archive + browsable viewer | One-shot online "builder profile" |
+| Cadence | **Ongoing** — runs daily, incremental & cumulative | One-shot snapshot |
+| Output | A living Markdown archive + browsable viewer | One-shot online "builder profile" |
 | Open source | Yes (MIT) | No |
 
 ---

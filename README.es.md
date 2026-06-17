@@ -80,7 +80,8 @@ Markdown local. Nada, ni crudo ni derivado, sale de tu máquina.
 |---|---|---|
 | Datos que salen de tu máquina | **Ninguno** | Datos derivados subidos a YC |
 | Hosting | Self-hosted / offline | Nube (YC) |
-| Salida | Archivo Markdown durable + visor navegable | Un "builder profile" online, one-shot |
+| Frecuencia | **Continua** — corre a diario, incremental y acumulativa | Foto one-shot |
+| Salida | Un archivo Markdown vivo + visor navegable | Un "builder profile" online, one-shot |
 | Open source | Sí (MIT) | No |
 
 ---
