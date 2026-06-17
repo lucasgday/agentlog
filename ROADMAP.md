@@ -21,6 +21,9 @@ something that isn't here).
 - A local **"insights" view** (model usage, productivity rhythms, token spend)
   computed entirely on-device.
 - **Search across your archive**, optionally AI-assisted, over one or all projects.
+- **Windows support** *(help wanted)*. The converters and viewer already run
+  cross-platform; it needs a Python rewrite of the bash orchestrator, Windows
+  paths, and Task Scheduler for the daily task.
 
 ## How processing would work (privacy first)
 
