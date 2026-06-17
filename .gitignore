@@ -11,6 +11,8 @@ markdown-*/
 
 # Generated metadata / state
 _backup-info.json
+_ledger.json
+_ledger-cache.json
 agentlog-progress.json
 
 # Private notes (never published)

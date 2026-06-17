@@ -62,6 +62,15 @@
   .an-stat{flex:1;min-width:120px;text-align:center;padding:14px;border-radius:10px;background:var(--paper)}
   .an-stat .num{font-size:26px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
   .an-stat .lbl{font-size:11px;color:var(--ink-soft);margin-top:4px}
+  .lg-sub{margin:-6px 0 14px;font-size:12px;color:var(--ink-soft)}
+  .lg-range{font-weight:500;font-size:11.5px;color:var(--ink-soft);margin-left:6px}
+  .lg-grid .an-stat{min-width:92px}
+  .lg-bars{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .lg-bar-row{display:flex;align-items:center;gap:10px;font-size:12px}
+  .lg-bar-name{flex:0 0 150px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lg-bar-track{flex:1;height:9px;background:var(--paper);border-radius:5px;overflow:hidden}
+  .lg-bar-fill{display:block;height:100%;background:var(--you);border-radius:5px}
+  .lg-bar-val{flex:0 0 46px;text-align:right;color:var(--ink-soft);font-variant-numeric:tabular-nums}
   .log-panel{position:fixed;top:54px;right:14px;width:340px;max-height:70vh;overflow-y:auto;background:var(--spine-2);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
   .log-panel.open{display:block}
   .log-panel h3{margin:0 0 10px;font-size:13px;color:#cfe0dc;font-weight:700}
@@ -289,7 +298,7 @@
 
     <main class="reader" id="reader">
       <div class="empty" id="emptyState">
-        <h2 class="big" id="empty-title">Your build log</h2>
+        <h2 class="big" id="empty-title">Your AI coding history</h2>
         <p id="empty-p">Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.</p>
         <div class="hintbox" id="empty-how"></div>
       </div>
@@ -313,7 +322,7 @@ const state = {
   types: { user:true, assistant:true, tool:true },
   query: "", hideDone:true, hideArchived:true, collapseAll:false,
   backupInfo:{}, collapsedSources:{}, groupMode:"project",
-  lang:"en",
+  lang:"en", ledger:null,
   progress: {}  // { [sessionId]: { done:bool, turns:{ [i]:bool } } }
 };
 
@@ -329,7 +338,7 @@ const I18N = {
     view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
     collapse_turns:"Collapse all turns", group_by:"Group by:", by_tool:"Tool", by_project:"Project",
     runs_title:"Latest backup runs", runs_empty:"No record yet. The backup writes here every time it runs.",
-    empty_title:"Your build log",
+    empty_title:"Your AI coding history",
     empty_p:"Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.",
     empty_how_t:"How to start",
     empty_how:"1. Click <b>Open folder</b>.<br>2. Pick the folder with your <code>markdown-*</code> backups (it reads every subfolder).<br>3. Progress is saved automatically; use <b>Save progress</b> for a file backup.<br><br>Everything runs on your machine. Nothing is uploaded.",
@@ -349,6 +358,13 @@ const I18N = {
     no_turns_match:"No turn matches the active filters.", no_results:"No results.",
     reading:"Reading", sessions_word:"sessions", no_md:"No <b>.md</b> files found in that folder.",
     bad_progress:"Couldn't read that progress file.",
+    ledger_title:"Evidence Ledger",
+    ledger_sub:"Computed on your machine from your transcripts — deterministic, nothing uploaded.",
+    lg_sessions:"sessions", lg_prompts:"prompts", lg_tool_calls:"tool calls",
+    lg_unique_tools:"unique tools", lg_files:"files modified", lg_tests:"test runs",
+    lg_builds:"build runs", lg_errors:"errors", lg_mcp:"MCP calls", lg_tpp:"tools / prompt",
+    lg_tokens_title:"Tokens by model", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)",
+    lg_cache_read:"cache read", lg_cache_write:"cache write", lg_range:"activity",
   },
   es: {
     doc_title:"agentlog · Visor de sesiones",
@@ -360,7 +376,7 @@ const I18N = {
     view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
     collapse_turns:"Colapsar todos los turnos", group_by:"Agrupar por:", by_tool:"Herramienta", by_project:"Proyecto",
     runs_title:"Últimas corridas del respaldo", runs_empty:"Sin registro todavía. El respaldo escribe acá cada vez que corre.",
-    empty_title:"Tu registro de construcción",
+    empty_title:"Tu historial de coding con IA",
     empty_p:"Abrí la carpeta que contiene tus markdowns. Se agrupan por fuente y proyecto, con fecha, y podés marcar lo revisado.",
     empty_how_t:"Cómo empezar",
     empty_how:"1. Tocá <b>Abrir carpeta</b>.<br>2. Elegí la carpeta con tus <code>markdown-*</code> (lee todas las subcarpetas).<br>3. El progreso se guarda solo; usá <b>Guardar progreso</b> para un respaldo en archivo.<br><br>Todo corre en tu equipo. Nada se sube a internet.",
@@ -380,6 +396,13 @@ const I18N = {
     no_turns_match:"Ningún turno coincide con los filtros activos.", no_results:"Sin resultados.",
     reading:"Leyendo", sessions_word:"sesiones", no_md:"No encontré archivos <b>.md</b> en esa carpeta.",
     bad_progress:"No pude leer ese archivo de progreso.",
+    ledger_title:"Registro de evidencia",
+    ledger_sub:"Calculado en tu equipo desde tus transcripciones — determinístico, nada se sube.",
+    lg_sessions:"sesiones", lg_prompts:"prompts", lg_tool_calls:"llamadas a tools",
+    lg_unique_tools:"tools únicas", lg_files:"archivos modificados", lg_tests:"corridas de test",
+    lg_builds:"builds", lg_errors:"errores", lg_mcp:"llamadas MCP", lg_tpp:"tools / prompt",
+    lg_tokens_title:"Tokens por modelo", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)",
+    lg_cache_read:"caché leído", lg_cache_write:"caché escrito", lg_range:"actividad",
   }
 };
 function t(k){ const d=I18N[state.lang]||I18N.en; return (k in d)?d[k]:(I18N.en[k]!==undefined?I18N.en[k]:k); }
@@ -603,6 +626,18 @@ async function handleFiles(fileList){
   for(const f of Array.from(fileList).filter(f=>/(^|\/)log\.json$/i.test(f.webkitRelativePath||f.name))){
     try{ const j=JSON.parse(await f.text()); if(Array.isArray(j)) state.runLog=j; }catch(e){}
   }
+  // collect the Evidence Ledger sidecar(s): one _ledger.json per source dir;
+  // merge their per-source blocks, then aggregate to a single display object.
+  state.ledger=null;
+  const ledgerSources={};
+  for(const f of Array.from(fileList).filter(f=>/_ledger\.json$/i.test(f.name))){
+    try{
+      const doc=JSON.parse(await f.text());
+      const src=(doc&&doc.sources)?doc.sources:{};
+      Object.assign(ledgerSources, src);
+    }catch(e){}
+  }
+  if(Object.keys(ledgerSources).length) state.ledger=aggregateLedger({sources:ledgerSources});
   if(!files.length){ document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("no_md")}</div>`; return; }
   document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("reading")} ${files.length} ${t("sessions_word")}…</div>`;
   state.sessions=[]; state.projects=new Map(); state.sources=new Map();
@@ -712,6 +747,12 @@ function renderAnalytics(){
     <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">${t("turns_btn")}</button>`;
   mc.querySelectorAll(".am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.metric=b.dataset.m; renderAnalytics(); }));
   grid.appendChild(mc);
+  // Evidence Ledger (deterministic, from _ledger.json) goes first, if present
+  if(state.ledger){
+    grid.appendChild(cardLedger(state.ledger));
+    grid.appendChild(cardTokensByModel(state.ledger));
+    grid.appendChild(cardTopTools(state.ledger));
+  }
   // order: summary, heatmap, top, activity
   grid.appendChild(cardSummary(sesiones));
   grid.appendChild(cardHeatmap(sesiones));
@@ -896,6 +937,106 @@ function cardSummary(sesiones){
   const stats=[[total,t("n_conversations")],[fuentes,t("n_tools")],[proyectos,t("n_projects")],[arch,t("n_archived")],[total-arch,t("n_active")]];
   cont.innerHTML=stats.map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
   card.appendChild(cont);
+  return card;
+}
+
+// ---------- EVIDENCE LEDGER (deterministic sidecar) ----------
+// Merge the per-source _ledger.json into a single aggregate for display.
+function aggregateLedger(doc){
+  if(!doc||typeof doc!=="object") return null;
+  const sources = (doc.sources && typeof doc.sources==="object") ? doc.sources : {"_":doc};
+  const T={sessions:0,user_messages:0,assistant_messages:0,tool_calls:0,mcp_tool_calls:0,files_modified:0,test_runs:0,build_runs:0,errors:0,web_searches:0};
+  const tok={input:0,output:0,cache_creation:0,cache_read:0};
+  const byModel={}, tools={}; let projects=[]; let first=null,last=null;
+  for(const s of Object.values(sources)){
+    if(!s||typeof s!=="object") continue;
+    const tt=s.totals||{};
+    for(const k in T) T[k]+=(+tt[k]||0);
+    const st=s.tokens||{}; for(const k in tok) tok[k]+=(+st[k]||0);
+    for(const [m,v] of Object.entries(s.tokens_by_model||{})){
+      const d=byModel[m]||(byModel[m]={input:0,output:0,cache_creation:0,cache_read:0});
+      for(const k in d) d[k]+=(+v[k]||0);
+    }
+    for(const [name,n] of Object.entries(s.tools||{})) tools[name]=(tools[name]||0)+(+n||0);
+    if(Array.isArray(s.projects)) projects=projects.concat(s.projects);
+    if(s.first_activity&&(!first||s.first_activity<first)) first=s.first_activity;
+    if(s.last_activity&&(!last||s.last_activity>last)) last=s.last_activity;
+  }
+  const upm=T.user_messages;
+  T.unique_tools=Object.keys(tools).length;
+  T.tools_per_user_msg=upm?Math.round(T.tool_calls/upm*10)/10:0;
+  projects.sort((a,b)=>(b.tool_calls||0)-(a.tool_calls||0));
+  const sortedTools=Object.entries(tools).sort((a,b)=>b[1]-a[1]);
+  return {totals:T,tokens:tok,tokens_by_model:byModel,tools:sortedTools,projects:projects.slice(0,12),first_activity:first,last_activity:last};
+}
+
+function fmtNum(n){
+  n=+n||0;
+  if(n>=1e9) return (n/1e9).toFixed(n>=1e10?0:1)+"B";
+  if(n>=1e6) return (n/1e6).toFixed(n>=1e7?0:1)+"M";
+  if(n>=1e3) return (n/1e3).toFixed(n>=1e4?0:1)+"k";
+  return String(n);
+}
+
+function cardLedger(lg){
+  const card=document.createElement("div"); card.className="an-card";
+  const T=lg.totals;
+  let range="";
+  if(lg.first_activity&&lg.last_activity){
+    range=`<span class="lg-range">${escapeHtml(formatDate(lg.first_activity.slice(0,10),false))} → ${escapeHtml(formatDate(lg.last_activity.slice(0,10),false))}</span>`;
+  }
+  card.innerHTML=`<h3>🧾 ${t("ledger_title")} ${range}</h3><p class="lg-sub">${t("ledger_sub")}</p>`;
+  const cont=document.createElement("div"); cont.className="an-summary lg-grid";
+  const stats=[
+    [T.sessions,t("lg_sessions")],[T.user_messages,t("lg_prompts")],
+    [fmtNum(T.tool_calls),t("lg_tool_calls")],[T.unique_tools,t("lg_unique_tools")],
+    [T.files_modified,t("lg_files")],[T.test_runs,t("lg_tests")],
+    [T.build_runs,t("lg_builds")],[T.errors,t("lg_errors")],
+    [T.mcp_tool_calls,t("lg_mcp")],[T.tools_per_user_msg,t("lg_tpp")],
+  ];
+  cont.innerHTML=stats.map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+  card.appendChild(cont);
+  return card;
+}
+
+function cardTokensByModel(lg){
+  const card=document.createElement("div"); card.className="an-card";
+  const tk=lg.tokens||{};
+  const totalBase=(tk.input||0)+(tk.output||0);
+  card.innerHTML=`<h3>${t("lg_tokens_title")}</h3>`;
+  const head=document.createElement("div"); head.className="an-summary";
+  head.innerHTML=[
+    [fmtNum(totalBase),t("lg_total_tokens")],
+    [fmtNum(tk.cache_read),t("lg_cache_read")],
+    [fmtNum(tk.cache_creation),t("lg_cache_write")],
+  ].map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+  card.appendChild(head);
+  const models=Object.entries(lg.tokens_by_model||{})
+    .map(([m,v])=>[m,(v.input||0)+(v.output||0)])
+    .filter(([m,n])=>n>0).sort((a,b)=>b[1]-a[1]);
+  const max=models.length?models[0][1]:1;
+  const wrap=document.createElement("div"); wrap.className="lg-bars";
+  wrap.innerHTML=models.map(([m,n])=>
+    `<div class="lg-bar-row"><span class="lg-bar-name">${escapeHtml(m)}</span>`+
+    `<span class="lg-bar-track"><span class="lg-bar-fill" style="width:${Math.max(n/max*100,1.5)}%"></span></span>`+
+    `<span class="lg-bar-val">${fmtNum(n)}</span></div>`).join("");
+  card.appendChild(wrap);
+  return card;
+}
+
+function cardTopTools(lg){
+  const card=document.createElement("div"); card.className="an-card";
+  card.innerHTML=`<h3>${t("lg_top_tools")}</h3>`;
+  const tools=(lg.tools||[]).slice(0,8);
+  const max=tools.length?tools[0][1]:1;
+  const wrap=document.createElement("div"); wrap.className="lg-bars";
+  wrap.innerHTML=tools.map(([name,n])=>{
+    const nm=name.startsWith("mcp__")?name.replace(/^mcp__/,"").replace(/_/g," "):name;
+    return `<div class="lg-bar-row"><span class="lg-bar-name" title="${escapeHtml(name)}">${escapeHtml(nm)}</span>`+
+    `<span class="lg-bar-track"><span class="lg-bar-fill" style="width:${Math.max(n/max*100,1.5)}%"></span></span>`+
+    `<span class="lg-bar-val">${fmtNum(n)}</span></div>`;
+  }).join("");
+  card.appendChild(wrap);
   return card;
 }
 

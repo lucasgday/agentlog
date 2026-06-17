@@ -90,6 +90,7 @@ TMP="$BASE/.sync-tmp"
 # data folder, so the code and the markdowns can live in different folders.
 PY_CLAUDE="$SCRIPT_DIR/converters/convert_claude.py"
 PY_CODEX="$SCRIPT_DIR/converters/convert_codex.py"
+PY_LEDGER="$SCRIPT_DIR/converters/extract_ledger.py"
 
 # OS-aware source paths (macOS vs Linux/XDG). Claude Code (~/.claude) and Codex
 # (~/.codex) are the same on both; Cowork/Cursor/OpenCode differ.
@@ -151,6 +152,11 @@ if [ -d "$HOME_CLAUDE/projects" ]; then
     else echo "  $new new/changed sessions → converting"; python3 "$PY_CLAUDE" "$SRC" "$BASE/markdown-claude" claude-code "$HOME_CLAUDE/history.jsonl"; fi
   else
     echo "  no changes"
+  fi
+  # Evidence Ledger: deterministic metrics over the FULL corpus (not the
+  # incremental delta), written as a sidecar the viewer reads. $0, no network.
+  if [ "$DRY" != "1" ]; then
+    python3 "$PY_LEDGER" "$HOME_CLAUDE/projects" "$BASE/markdown-claude" claude-code || true
   fi
 else
   echo "-- Claude Code -- (not found, skipped)"

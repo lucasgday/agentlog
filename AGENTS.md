@@ -27,6 +27,11 @@ OpenCode, Cowork). macOS and Linux (paths resolved per-OS; Cowork is macOS-only)
   `--dry-run`, optional `[OUTPUT_DIR]`). Reads each source, calls the converters.
 - `converters/convert_*.py` — one per source (claude/codex/opencode/cursor; cowork
   reuses convert_claude). Each reads its origin and writes the standard Markdown.
+- `converters/extract_ledger.py` — **Evidence Ledger**: deterministic, $0, on-device
+  metrics (token usage, tool/test/build counts, files modified, errors) parsed from
+  the raw `.jsonl`. Writes a `_ledger.json` sidecar the viewer reads. No LLM, no
+  network. Incremental: per-session metrics are cached in `_ledger-cache.json`
+  (validated by file size:mtime), so each run only re-scans changed sessions.
 - `viewer.html` — standalone, bilingual (EN/ES) viewer. Pure reader. No build step.
 - `*.command` — double-click launchers (install/uninstall the launchd task; run).
 - `docs/` — `index.html` (the GitHub Pages live demo, sample data baked in),
@@ -65,7 +70,7 @@ changes. See any existing converter as a reference.
 ## Verifying changes
 
 - Shell: `bash -n update-backup.sh *.command`
-- Converters: `python3 -m py_compile converters/convert_*.py`
+- Converters: `python3 -m py_compile converters/convert_*.py converters/extract_ledger.py`
 - Viewer JS parses: `node -e "const h=require('fs').readFileSync('viewer.html','utf8');new Function(h.match(/<script>([\s\S]*)<\/script>/)[1]);console.log('ok')"`
 - Visual: serve a folder of sample `.md` and open the viewer headless, or open
   `viewer.html` and point it at a markdown folder. The viewer must render with no

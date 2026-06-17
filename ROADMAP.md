@@ -18,8 +18,8 @@ something that isn't here).
 
 ## Exploring
 
-- A local **"insights" view** (model usage, productivity rhythms, token spend)
-  computed entirely on-device.
+- Richer **local insights** (productivity rhythms, heuristic prompt/test quality)
+  building on the Evidence Ledger — all computed on-device.
 - **Search across your archive**, optionally AI-assisted, over one or all projects.
 - **Windows support** *(help wanted)*. The converters and viewer already run
   cross-platform; it needs a Python rewrite of the bash orchestrator, Windows
@@ -38,3 +38,5 @@ the model.
 - Standalone, bilingual (EN/ES) viewer with grouping, search, analytics
 - Incremental + cumulative; daily automatic backup; portable Markdown history
 - **macOS & Linux** — per-OS source paths; `launchd` (macOS) / `cron` (Linux)
+- **Evidence Ledger** — deterministic local metrics (tokens by model, tool/test/build
+  counts, files modified, errors), computed on-device; nothing uploaded
