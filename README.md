@@ -266,6 +266,9 @@ Once the converter produces that format, the viewer and the rest of the flow
 pick it up without changes. Look at any of the `converters/convert_*.py` files as
 a reference. Bug reports, viewer improvements and ideas in general are welcome too.
 
+Working on agentlog with an AI agent? See [AGENTS.md](AGENTS.md) for the
+conventions and the one hard rule: the viewer makes **zero network calls**.
+
 ---
 
 ## Notes

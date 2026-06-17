@@ -270,6 +270,9 @@ toman sin cambios. Fijate en cualquiera de los `converters/convert_*.py` como
 referencia. También son bienvenidos reportes de bugs, mejoras al visor e ideas en
 general.
 
+¿Trabajás en agentlog con un agente de IA? Mirá [AGENTS.md](AGENTS.md) para las
+convenciones y la regla de oro: el visor hace **cero llamadas de red**.
+
 ---
 
 ## Notas
