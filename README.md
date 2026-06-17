@@ -123,8 +123,17 @@ writes local Markdown. Nothing, raw or derived, leaves your machine.
 
 Requires **macOS** and **Python 3** (ships with macOS).
 
+**1. Get the code** — clone it (or download the ZIP from the green **Code**
+button on GitHub and unzip it):
+
 ```bash
-# Make the scripts executable
+git clone https://github.com/lucasgday/agentlog.git
+cd agentlog
+```
+
+**2. Make the scripts executable:**
+
+```bash
 chmod +x update-backup.sh *.command
 ```
 

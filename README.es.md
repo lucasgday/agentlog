@@ -127,8 +127,17 @@ Markdown local. Nada, ni crudo ni derivado, sale de tu máquina.
 
 Requiere **macOS** y **Python 3** (viene con macOS).
 
+**1. Conseguí el código** — cloná el repo (o descargá el ZIP desde el botón verde
+**Code** en GitHub y descomprimilo):
+
 ```bash
-# Dar permiso de ejecución a los scripts
+git clone https://github.com/lucasgday/agentlog.git
+cd agentlog
+```
+
+**2. Dales permiso de ejecución a los scripts:**
+
+```bash
 chmod +x update-backup.sh *.command
 ```
 
