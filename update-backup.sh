@@ -220,10 +220,10 @@ for sid in arch_ids:
         # no .md for this id is marked archived:true → mark the (single) existing one
         for item in lst:
             f,a,txt=item
-            nuevo=re.sub(r'archived:\s*false','archived: true',txt,count=1)
-            nuevo=re.sub(r'archivada:\s*false','archivada: true',nuevo,count=1)
-            if nuevo!=txt:
-                open(f,'w').write(nuevo); marked+=1; item[1]=True
+            updated=re.sub(r'archived:\s*false','archived: true',txt,count=1)
+            updated=re.sub(r'archivada:\s*false','archivada: true',updated,count=1)
+            if updated!=txt:
+                open(f,'w').write(updated); marked+=1; item[1]=True
     # remove active:false duplicates if there's already a true one
     if any(a for _,a,_ in by_id[sid]):
         for f,a,_ in by_id[sid]:

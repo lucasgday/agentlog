@@ -1,5 +1,7 @@
 # agentlog
 
+**Tu historial de coding con IA, self-hosted.**
+
 **🇪🇸 Español · 🇬🇧 [English](README.md)**
 
 Respaldo local + visor de tus conversaciones con herramientas de IA-coding.
@@ -11,10 +13,9 @@ standalone para navegarlas, agruparlas, filtrarlas y ver analíticas de tu uso.
 Todo corre **localmente en tu Mac**. Nada se sube a ningún lado. La interfaz del
 visor es **bilingüe (inglés / español)** con un selector de idioma.
 
-**▶ [Probá la demo en vivo](https://lucasgday.github.io/agentlog/)** — el visor con
-datos de ejemplo, para ver cómo funciona. Corre 100% en tu navegador y **no sube
-nada**; para respaldar y navegar *tus propias* conversaciones, instalalo (abajo) y
-usá el `viewer.html` local.
+**▶ [Probá la demo en vivo](https://lucasgday.github.io/agentlog/)** — el visor
+corriendo en tu navegador con datos de ejemplo, para ver cómo funciona. **No sube
+nada.**
 
 ![agentlog — lista de conversaciones, analytics, historial, UI bilingüe](docs/hero.gif)
 
@@ -37,7 +38,7 @@ rara vez te enterás cuando lo perdés.**
   base de datos, ese historial se va **sin aviso** y sin papelera.
 
 > **Nota honesta:** si usás *solo* Claude Code y subís `cleanupPeriodDays`, gran
-> parte del borrado automático deja de ser un problema. Aun así, esto sigue
+> parte del borrado automático deja de ser un problema. Aun así, agentlog sigue
 > aportando lo que un setting de retención no te da (ver abajo).
 
 Lo que este proyecto te da, más allá de la retención de cada herramienta:

@@ -1,5 +1,7 @@
 # agentlog
 
+**Your AI coding history, self-hosted.**
+
 **🇬🇧 English · 🇪🇸 [Español](README.es.md)**
 
 Local backup + viewer for your conversations with AI-coding tools.
@@ -11,10 +13,9 @@ HTML viewer to browse, group, filter and see analytics of your usage.
 Everything runs **locally on your Mac**. Nothing is uploaded anywhere. The viewer
 UI is **bilingual (English / Spanish)** with a language toggle.
 
-**▶ [Try the live demo](https://lucasgday.github.io/agentlog/)** — the viewer with
-sample data, to see how it works. It runs entirely in your browser and **uploads
-nothing**; to back up and browse *your own* conversations, install it (below) and
-use the local `viewer.html`.
+**▶ [Try the live demo](https://lucasgday.github.io/agentlog/)** — the viewer
+running in your browser with sample data, so you can see how it works. It
+**uploads nothing**.
 
 ![agentlog — conversation list, analytics, run history, bilingual UI](docs/hero.gif)
 
@@ -36,8 +37,8 @@ notice when you lose it.**
   **without warning** and without a trash bin.
 
 > **Honest note:** if you use *only* Claude Code and raise `cleanupPeriodDays`,
-> much of the automatic deletion stops being a problem. Even so, this still gives
-> you what a retention setting doesn't (see below).
+> much of the automatic deletion stops being a problem. Even so, agentlog still
+> gives you what a retention setting doesn't (see below).
 
 What this project gives you, beyond each tool's retention:
 

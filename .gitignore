@@ -1,15 +1,9 @@
-# Conversaciones reales — NUNCA se suben al repo.
-# Cada usuario respalda las suyas localmente.
+# Your conversations — NEVER committed. Everyone backs up their own locally.
 markdown-*/
-consolidado/
-cowork-collected/
-respaldos-crudos/
-recuperado-*/
-instrucciones-extraidas/
 .sync-state/
 .sync-tmp/
 
-# Datos crudos de las herramientas de origen
+# Raw data from the source tools
 *.jsonl
 *.db
 *.vscdb
@@ -18,8 +12,6 @@ instrucciones-extraidas/
 # Generated metadata / state
 _backup-info.json
 agentlog-progress.json
-build-log-progress.json
-build-log-progreso.json
 
 # Python
 __pycache__/

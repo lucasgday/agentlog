@@ -416,7 +416,7 @@ function applyStaticI18n(){
   set("empty-how",`<b>${t("empty_how_t")}</b><br>${t("empty_how")}`,true);
 }
 
-/* ---------- persistencia ---------- */
+/* ---------- persistence ---------- */
 function loadProgress(){
   try{ const raw = localStorage.getItem(STORE_KEY); if(raw) state.progress = JSON.parse(raw); }catch(e){}
 }
@@ -452,7 +452,7 @@ function renderRunLog(){
   body.innerHTML=log.map((e,idx)=>{
     const fecha=formatDate(e.date||e.fecha,true)||e.date||e.fecha||"?";
     const det=Object.entries(e).filter(([k])=>k!=="fecha"&&k!=="date"&&k!=="total").map(([k,v])=>`${k} ${v}`).join(" · ");
-    // delta respecto a la corrida siguiente en el historial (la anterior en el tiempo)
+    // delta vs the next run in the history (the previous one in time)
     const prev=log[idx+1];
     let deltaTotal="", deltaSrc="";
     if(prev){
@@ -540,14 +540,14 @@ function parseMeta(text){
   return meta;
 }
 function parseTurns(text){
-  // separa por encabezados ### Tú / ### Claude / ### Codex; herramientas dentro de bloques asistente
+  // split by ### You / ### Claude / ### Codex headers; tools inside assistant blocks
   const lines=text.replace(/\r\n/g,"\n").split("\n");
   const turns=[]; let speaker=null, buf=[];
   const flush=()=>{
     if(speaker===null) { buf=[]; return; }
     const md=buf.join("\n").trim();
     if(md){
-      // dividir en sub-turnos por marcadores de herramienta
+      // split into sub-turns by tool markers
       const parts=splitTools(md, speaker);
       for(const p of parts) turns.push(p);
     }
@@ -556,7 +556,7 @@ function parseTurns(text){
   for(const l of lines){
     const head=l.match(/^###\s+(.+?)\s*$/);
     if(head){ flush(); const who=head[1].toLowerCase(); speaker=(who.includes("tú")||who.includes("tu")||who.includes("you")||who.includes("user"))?"user":"assistant"; continue; }
-    if(/^#\s+/.test(l)) continue;        // título
+    if(/^#\s+/.test(l)) continue;        // title
     if(/^<!--/.test(l)) continue;        // metadata
     if(speaker===null) continue;
     buf.push(l);
@@ -565,7 +565,7 @@ function parseTurns(text){
   return turns;
 }
 function splitTools(md, speaker){
-  // dentro de un bloque, separar texto de bloques [herramienta:]/[resultado]
+  // within a block, separate text from [tool:]/[result] blocks
   const lines=md.split("\n"); const out=[]; let i=0; let textbuf=[];
   const flushText=()=>{ const t=textbuf.join("\n").trim(); if(t) out.push({type:speaker, md:t}); textbuf=[]; };
   while(i<lines.length){
@@ -590,15 +590,15 @@ function previewText(t){
   return s.slice(0,90);
 }
 
-/* ---------- carga ---------- */
+/* ---------- loading ---------- */
 async function handleFiles(fileList){
   const files=Array.from(fileList).filter(f=>/\.md$/i.test(f.name));
-  // recolectar sellos de backup (_backup-info.json)
+  // collect backup stamps (_backup-info.json)
   state.backupInfo={};
   for(const f of Array.from(fileList).filter(f=>/_backup-info\.json$/i.test(f.name))){
     try{ const j=JSON.parse(await f.text()); Object.assign(state.backupInfo, j); }catch(e){}
   }
-  // recolectar historial de corridas (.sync-state/log.json)
+  // collect run history (.sync-state/log.json)
   state.runLog=[];
   for(const f of Array.from(fileList).filter(f=>/(^|\/)log\.json$/i.test(f.webkitRelativePath||f.name))){
     try{ const j=JSON.parse(await f.text()); if(Array.isArray(j)) state.runLog=j; }catch(e){}
@@ -628,7 +628,7 @@ async function handleFiles(fileList){
   for(const pm of state.sources.values())
     for(const p of pm.values())
       p.sessions.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  // los grupos del modo activo arrancan colapsados; el usuario expande el que quiera
+  // groups of the active mode start collapsed; the user expands whichever they want
   state.collapsedSources={};
   if(state.groupMode==="source"){
     for(const fuente of state.sources.keys()) state.collapsedSources["src:"+fuente]=true;
@@ -637,7 +637,7 @@ async function handleFiles(fileList){
     for(const pm of state.sources.values()) for(const p of pm.values()) projs.add(p.project);
     for(const pr of projs) state.collapsedSources["proj:"+pr]=true;
   }
-  // elegir la primera conversación activa y sin revisar (la más reciente)
+  // pick the most recent active, unreviewed conversation
   const elegibles=state.sessions
     .filter(s=>!s.archivada && !prog(s.id).done)
     .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
@@ -675,14 +675,14 @@ function srcColor(f){ return SRC_COLORS[f]||"#888"; }
 // ---------- ANALYTICS ----------
 const AN={ gran:"month", srcOn:{}, metric:"conv" };  // metric: 'conv' o 'turns'
 
-// peso de una sesión según la métrica activa: 1 conversación, o su cantidad de turnos
+// weight of a session per the active metric: 1 conversation, or its turn count
 function sesPeso(s){ return AN.metric==="turns" ? (s.turns?s.turns.length:0) : 1; }
 function metricLabel(){ return AN.metric==="turns" ? t("metric_turns") : t("metric_conv"); }
 
 function showAnalytics(){
   document.getElementById("reader").style.display="none";
   document.getElementById("analytics").style.display="block";
-  // inicializar fuentes activas (todas on la primera vez)
+  // initialize active sources (all on the first time)
   for(const f of state.sources.keys()) if(!(f in AN.srcOn)) AN.srcOn[f]=true;
   renderAnalytics();
 }
@@ -695,7 +695,7 @@ function periodKey(iso, gran){
   const d=new Date(iso); if(isNaN(d)) return null;
   if(gran==="day") return d.toISOString().slice(0,10);
   if(gran==="month") return d.toISOString().slice(0,7);
-  // week: año-Wnn (ISO week aproximada)
+  // week: year-Wnn (approximate ISO week)
   const onejan=new Date(d.getFullYear(),0,1);
   const week=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
   return d.getFullYear()+"-W"+String(week).padStart(2,"0");
@@ -712,7 +712,7 @@ function renderAnalytics(){
     <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">${t("turns_btn")}</button>`;
   mc.querySelectorAll(".am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.metric=b.dataset.m; renderAnalytics(); }));
   grid.appendChild(mc);
-  // orden: resumen, heatmap, top, actividad
+  // order: summary, heatmap, top, activity
   grid.appendChild(cardSummary(sesiones));
   grid.appendChild(cardHeatmap(sesiones));
   grid.appendChild(cardTopProjects(sesiones));
@@ -741,7 +741,7 @@ function setupTooltips(){
   });
 }
 
-// 1+2: área apilada temporal con selector de fuentes y toggle de granularidad
+// 1+2: stacked area over time with source selector and granularity toggle
 function cardStackedArea(sesiones){
   const card=document.createElement("div"); card.className="an-card";
   const fuentes=[...state.sources.keys()];
@@ -765,7 +765,7 @@ function cardStackedArea(sesiones){
   ctrl.appendChild(gran);
   card.appendChild(ctrl);
 
-  // datos: período -> {fuente: count}
+  // data: period -> {source: count}
   const activos=fuentes.filter(f=>AN.srcOn[f]);
   const periodos=new Map();
   for(const s of sesiones){
@@ -782,14 +782,14 @@ function cardStackedArea(sesiones){
   const plotW=W-padL-padR, plotH=H-padT-padB;
   const maxY=Math.max(...keys.map(k=>activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0)),1);
   let svg=`<svg class="an-svg" viewBox="0 0 ${W} ${H}">`;
-  // eje Y (líneas guía)
+  // Y axis (guide lines)
   for(let i=0;i<=4;i++){ const y=padT+plotH-(plotH*i/4); const val=Math.round(maxY*i/4);
     svg+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
     svg+=`<text class="an-axis" x="${padL-6}" y="${y+3}" text-anchor="end">${val}</text>`; }
 
   if(AN.gran==="day"){
-    // ÁREA APILADA (muchos puntos: mejor como flujo)
-    // acumulado por capa: para cada fuente, su línea superior = suma de esta + las de abajo
+    // STACKED AREA (many points: better as a flow)
+    // cumulative per layer: for each source, its top line = this one + those below
     const xAt=(i)=>padL+(keys.length<=1?plotW/2:plotW*i/(keys.length-1));
     const yAt=(val)=>padT+plotH-plotH*val/maxY;
     let baseline=keys.map(()=>0);  // acumulado inferior
@@ -804,14 +804,14 @@ function cardStackedArea(sesiones){
       svg+=`<path d="${p}" fill="${srcColor(f)}" fill-opacity="0.85" stroke="${srcColor(f)}" stroke-width="0.5"/>`;
       baseline=tops;
     }
-    // puntos invisibles para tooltip por período (sobre el total)
+    // invisible points for a per-period tooltip (over the total)
     keys.forEach((k,i)=>{
       const totalK=activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0);
       const det=activos.filter(f=>periodos.get(k)[f]).map(f=>`<span class='tt-dot' style='background:${srcColor(f)}'></span>${niceSource(f)}: <b>${periodos.get(k)[f]}</b>`).join("<br>");
       svg+=`<rect x="${xAt(i)-3}" y="${padT}" width="6" height="${plotH}" fill="transparent" data-tip="<b>${k}</b><br>${det||t('no_activity')}<br><span style='opacity:.7'>${t('total')}: ${totalK} ${metricLabel()}</span>"/>`;
     });
   } else {
-    // BARRAS APILADAS (pocos puntos: valores claros)
+    // STACKED BARS (few points: clear values)
     const bw=plotW/keys.length;
     keys.forEach((k,i)=>{
       const x=padL+i*bw; let acc=0;
@@ -824,7 +824,7 @@ function cardStackedArea(sesiones){
       }
     });
   }
-  // etiquetas X (algunas)
+  // X labels (some)
   const step=Math.ceil(keys.length/8);
   const bwx=plotW/keys.length;
   keys.forEach((k,i)=>{ if(i%step!==0) return;
@@ -857,7 +857,7 @@ function cardTopProjects(sesiones){
   return card;
 }
 
-// 5: heatmap estilo GitHub del último año
+// 5: GitHub-style heatmap of the last year
 function cardHeatmap(sesiones){
   const card=document.createElement("div"); card.className="an-card";
   card.innerHTML=`<h3>${t("daily_activity")}</h3>`;
@@ -877,14 +877,14 @@ function cardHeatmap(sesiones){
     svg+=`<rect class="heat-cell" x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2" fill="${shade(v)}" data-tip="<b>${k}</b><br><b>${v}</b> ${metricLabel()}"/>`;
     d.setDate(d.getDate()+1); if(d.getDay()===0) col++;
   }
-  // etiquetas de día
+  // day labels
   t("dow").forEach((lbl,i)=>{ if(lbl) svg+=`<text class="an-axis" x="2" y="${i*(cell+gap)+cell}">${lbl}</text>`; });
   svg+=`</svg>`;
   const div=document.createElement("div"); div.innerHTML=svg; card.appendChild(div);
   return card;
 }
 
-// 6: resumen archivadas/activas + totales
+// 6: archived/active summary + totals
 function cardSummary(sesiones){
   const card=document.createElement("div"); card.className="an-card";
   card.innerHTML=`<h3>${t("summary")}</h3>`;
@@ -919,7 +919,7 @@ function makeSubgroup(label, sessions, flat){
   const vis=sessions.filter(sessionVisible);
   if(!vis.length) return null;
   vis.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  // flat: sin encabezado de subgrupo, directamente la lista (modo proyecto)
+  // flat: no subgroup header, just the list (project mode)
   if(flat){
     const ul=document.createElement("ul"); ul.className="sessions sessions-flat";
     for(const s of vis) ul.appendChild(makeSessionLi(s));
@@ -942,7 +942,7 @@ function renderSidebar(){
   const root=document.getElementById("projects"); root.innerHTML="";
   if(!state._projCollapse) state._projCollapse={};
 
-  // Construir grupos de primer nivel según el modo.
+  // Build first-level groups by mode.
   // groups: [ { id, name, subgroups: [ [label, sessions[]], ... ] } ]
   let groups=[];
   if(state.groupMode==="source"){
@@ -953,8 +953,8 @@ function renderSidebar(){
       groups.push({id:"src:"+fuente, name:niceSource(fuente), subgroups:subs});
     }
   } else {
-    // por proyecto: juntar todas las sesiones de todas las fuentes, agrupar por proyecto.
-    // Dentro NO se subagrupa por fuente: una sola lista ordenada por fecha, con pastilla de source.
+    // by project: gather all sessions from all sources, group by project.
+    // No sub-grouping by source inside: a single list sorted by date, with a source pill.
     const byProj=new Map();
     for(const pm of state.sources.values())
       for(const p of pm.values())
@@ -963,7 +963,7 @@ function renderSidebar(){
           byProj.get(p.project).push(s);
         }
     for(const proj of [...byProj.keys()].sort((a,b)=>a.localeCompare(b,'es'))){
-      // subgrupo único con label vacío → se rinde como lista directa
+      // single subgroup with empty label → rendered as a direct list
       groups.push({id:"proj:"+proj, name:proj, subgroups:[["",byProj.get(proj)]], flat:true});
     }
   }
@@ -1088,7 +1088,7 @@ function fallbackCopy(txt,cb){
   document.body.removeChild(ta); if(cb)cb();
 }
 
-/* ---------- eventos ---------- */
+/* ---------- events ---------- */
 document.getElementById("openBtn").addEventListener("click",()=>document.getElementById("folder").click());
 document.getElementById("folder").addEventListener("change",e=>handleFiles(e.target.files));
 document.getElementById("types").addEventListener("click",e=>{ const chip=e.target.closest(".chip"); if(!chip)return; const t=chip.dataset.type; state.types[t]=!state.types[t]; chip.classList.toggle("on",state.types[t]); if(state.activeId)openSession(state.activeId); });
