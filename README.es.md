@@ -94,6 +94,10 @@ Markdown local. Nada, ni crudo ni derivado, sale de tu máquina.
   herramienta de origen borre la conversación original.
 - **Conversión a Markdown.** Cada sesión queda como un `.md` con título, fecha,
   id, proyecto y fuente, y los turnos separados (`### You` / `### Claude`, etc.).
+- **Historial portable.** Como es Markdown plano, podés copiar una conversación
+  entera (el visor tiene un botón de un clic) y pegarla en *otro* modelo o
+  herramienta para seguir con todo el contexto — tu historial no queda atado a un
+  solo proveedor.
 - **Visor HTML standalone** (`viewer.html`). Se abre con doble clic (`file://`),
   sin servidor. Agrupa por fuente o por proyecto, colorea por herramienta,
   filtra archivadas y revisadas, copia por turno o conversación entera, marca
@@ -227,6 +231,14 @@ conversaciones nuevas aportó cada fuente.
   se manda a ningún lado — el visor no hace ninguna llamada de red. Aun así, una
   página hosteada se baja en cada visita, así que para el uso real de todos los
   días conviene el `viewer.html` local (`file://`): es fijo y 100% inspeccionable.
+
+---
+
+## Roadmap
+
+Mirá [ROADMAP.md](ROADMAP.md) para ver hacia dónde va — resúmenes por
+conversación, vista por proyecto, un `AGENTS.md` recomendado a partir de tu propio
+historial, soporte Linux. Todo lo planeado sigue siendo local.
 
 ---
 

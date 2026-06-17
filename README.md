@@ -90,6 +90,10 @@ writes local Markdown. Nothing, raw or derived, leaves your machine.
   tool removes the original conversation.
 - **Markdown conversion.** Each session becomes a `.md` with title, date, id,
   project and source, and separated turns (`### You` / `### Claude`, etc.).
+- **Portable history.** Because it's plain Markdown, you can copy a whole
+  conversation (the viewer has a one-click button) and paste it into a *different*
+  model or tool to continue with full context — your history isn't locked to one
+  vendor.
 - **Standalone HTML viewer** (`viewer.html`). Opens with a double-click
   (`file://`), no server. Groups by source or project, colors by tool, filters
   archived and reviewed, copies per turn or whole conversation, marks
@@ -224,6 +228,14 @@ source contributed.
   anywhere — the viewer makes zero network calls. That said, a hosted page is
   fetched fresh each visit, so for real, everyday use prefer the local
   `viewer.html` (`file://`): it's fixed and fully inspectable.
+
+---
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for where it's headed — per-conversation summaries,
+per-project overviews, a recommended `AGENTS.md` from your own history, Linux
+support. Everything planned stays local.
 
 ---
 

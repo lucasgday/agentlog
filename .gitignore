@@ -13,6 +13,9 @@ markdown-*/
 _backup-info.json
 agentlog-progress.json
 
+# Private notes (never published)
+*.private.md
+
 # Python
 __pycache__/
 
