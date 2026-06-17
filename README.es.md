@@ -11,6 +11,9 @@ standalone para navegarlas, agruparlas, filtrarlas y ver analíticas de tu uso.
 Todo corre **localmente en tu Mac**. Nada se sube a ningún lado. La interfaz del
 visor es **bilingüe (inglés / español)** con un selector de idioma.
 
+**▶ [Probá la demo en vivo](https://lucasgday.github.io/agentlog/)** — corre en tu
+navegador con datos de ejemplo, sin instalar nada.
+
 ---
 
 ## Por qué
@@ -52,6 +55,29 @@ mano.
 Y como son tus datos privados, **todo corre local**: los scripts solo leen tus
 archivos y escriben Markdown en tu disco, el visor es un HTML estático. No hay
 servidor, ni nube, ni telemetría. (Ver [Privacidad](#privacidad).)
+
+---
+
+## Cómo se compara
+
+agentlog nació de la misma idea que **Paxel** (de YC) — sacarle sentido a tus
+sesiones de Claude Code / Codex / Cursor — pero con el default opuesto sobre tus
+datos. Paxel corre el análisis local pero **sube datos derivados** a YC (extractos
+de prompts, rutas de archivos, metadata de commits, narrativas) para armar un
+perfil online; un audit de seguridad de la comunidad detectó que mandaba más de lo
+anunciado, y bajaron la promo del lanzamiento por la polémica de privacidad
+([audit](https://www.gate.com/news/detail/y-combinators-paxel-ai-tool-claims-local-analysis-but-security-audit-21668126),
+[cobertura](https://digg.com/ai/urogjb9u)).
+
+agentlog es **self-hosted y offline** — solo lee tus archivos locales y escribe
+Markdown local. Nada, ni crudo ni derivado, sale de tu máquina.
+
+| | agentlog | Paxel |
+|---|---|---|
+| Datos que salen de tu máquina | **Ninguno** | Datos derivados subidos a YC |
+| Hosting | Self-hosted / offline | Nube (YC) |
+| Salida | Archivo Markdown durable + visor navegable | Un "builder profile" online, one-shot |
+| Open source | Sí (MIT) | No |
 
 ---
 

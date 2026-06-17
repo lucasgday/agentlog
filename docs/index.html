@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentlog · Session viewer</title>
+<style>
+  :root{
+    --spine:#0F2A28; --spine-2:#143836; --paper:#FAFAF6; --panel:#FFFFFF;
+    --ink:#1A2421; --ink-soft:#5A655F; --line:#E4E7E3; --line-strong:#CBD2CD;
+    --you:#C2553B; --claude:#2F6F69; --tool:#8A7A52; --tool-bg:#F2EFE7;
+    --code-bg:#102220; --code-fg:#D7E4DF; --sel:#FBE9CF; --done:#9AA39E;
+    --display: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);
+    -webkit-font-smoothing:antialiased;display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+
+  .topbar{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--spine);color:#EAF0EE;border-bottom:1px solid #0a201e;flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+  .brand .mark{font-family:var(--display);font-size:20px}
+  .brand .sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA39D}
+  .topbar .grow{flex:1}
+  .search{position:relative}
+  .global-count{display:flex;align-items:center;gap:10px;font-size:12px;color:#cfe0dc;margin-right:4px;white-space:nowrap}
+  .global-count .gc-total{font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+  .global-count .gc-split{color:#7FA39D;font-variant-numeric:tabular-nums}
+  .btn-log{font:inherit;font-size:11.5px;cursor:pointer;padding:5px 10px;border-radius:7px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);margin-left:10px;white-space:nowrap}
+  .btn-log:hover{background:#0c2422;color:#cfe0dc}
+  .analytics{flex:1;overflow-y:auto;padding:24px 28px;background:var(--paper)}
+  .an-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .an-head h2{margin:0;font-size:20px;color:var(--ink)}
+  .an-grid{display:flex;flex-direction:column;gap:24px;max-width:920px}
+  .an-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .an-card h3{margin:0 0 14px;font-size:14px;color:var(--ink);font-weight:700}
+  .an-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .an-src-toggle{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);user-select:none}
+  .an-src-toggle .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .an-src-toggle.off{opacity:.4}
+  .an-gran{display:flex;gap:4px;margin-left:auto}
+  .an-gran button{font:inherit;font-size:11px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink-soft)}
+  .an-gran button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .an-svg{width:100%;height:auto;overflow:visible}
+  .an-tooltip{position:fixed;z-index:100;pointer-events:none;background:var(--ink);color:#fff;padding:7px 11px;border-radius:8px;font-size:12px;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .1s;white-space:nowrap}
+  .an-tooltip.show{opacity:1}
+  .an-tooltip .tt-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .an-tooltip b{font-weight:700}
+  .an-svg rect[data-tip]{cursor:pointer}
+  .an-svg rect[data-tip]:hover{opacity:.82;stroke:var(--ink);stroke-width:1.5}
+  .an-metric{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .an-metric .am-label{font-size:12px;color:var(--ink-soft)}
+  .am-btn{font:inherit;font-size:11.5px;cursor:pointer;padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-soft)}
+  .am-btn.active{background:var(--you);color:#fff;border-color:var(--you);font-weight:600}
+  .an-bar-label{font-size:11px;fill:var(--ink-soft)}
+  .an-axis{font-size:10px;fill:#9aa;}
+  .an-tip{fill:var(--ink);font-size:11px}
+  .heat-cell{rx:2}
+  .an-summary{display:flex;gap:20px;flex-wrap:wrap}
+  .an-stat{flex:1;min-width:120px;text-align:center;padding:14px;border-radius:10px;background:var(--paper)}
+  .an-stat .num{font-size:26px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .an-stat .lbl{font-size:11px;color:var(--ink-soft);margin-top:4px}
+  .log-panel{position:fixed;top:54px;right:14px;width:340px;max-height:70vh;overflow-y:auto;background:var(--spine-2);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
+  .log-panel.open{display:block}
+  .log-panel h3{margin:0 0 10px;font-size:13px;color:#cfe0dc;font-weight:700}
+  .log-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #0a201e;font-size:12px}
+  .log-row:last-child{border-bottom:none}
+  .log-row .lr-fecha{color:#9fc0ba}
+  .log-row .lr-total{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .log-row .lr-detalle{color:#6b9a93;font-size:10.5px}
+  .log-row .lr-delta{font-size:10.5px;font-weight:700;margin-left:6px}
+  .log-row .lr-delta.up{color:#5fb8ad}
+  .log-row .lr-delta.down{color:#d87093}
+  .lr-deltas{margin-top:3px;display:flex;flex-wrap:wrap;gap:4px}
+  .lr-deltas .ds{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px}
+  .lr-deltas .ds.up{background:#163b36;color:#5fb8ad}
+  .lr-deltas .ds.down{background:#3a1f2a;color:#d87093}
+  .log-empty{color:#7FA39D;font-size:12px;padding:6px 0}
+  .search input{width:240px;max-width:40vw;padding:7px 11px 7px 30px;border:1px solid #2c534f;background:#0c2422;color:#EAF0EE;border-radius:8px;font:inherit;font-size:13px}
+  .search input::placeholder{color:#6b8e88}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:.6}
+  .btn{font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:8px 13px;border-radius:8px;border:1px solid transparent;background:var(--you);color:#fff;white-space:nowrap}
+  .btn:hover{filter:brightness(1.05)}
+  .btn.ghost{background:transparent;border-color:#2c534f;color:#cfe0dc}
+  .btn.ghost:hover{background:#0c2422}
+  .btn.sm{padding:6px 10px;font-size:12px}
+
+  .shell{display:grid;grid-template-columns:340px 1fr;min-height:0}
+  .sidebar{background:linear-gradient(180deg,var(--spine),var(--spine-2));color:#DCE7E4;overflow-y:auto;border-right:1px solid #0a201e}
+  .reader{overflow-y:auto;background:var(--paper)}
+
+  .filters{padding:16px 16px 8px;position:sticky;top:0;z-index:10;background:var(--spine);border-bottom:1px solid #0a201e}
+  .filters h3{margin:14px 0 8px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7FA39D;font-weight:700}
+  .filters h3:first-child{margin-top:0}
+  .types{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:5px 10px;border-radius:999px;font-size:12px;user-select:none;border:1px solid #2c534f;background:#0c2422;color:#cfe0dc;transition:.12s}
+  .chip .dot{width:7px;height:7px;border-radius:999px;background:currentColor}
+  .chip[data-type="user"]{--c:var(--you)} .chip[data-type="assistant"]{--c:var(--claude)} .chip[data-type="tool"]{--c:var(--tool)}
+  .chip .dot{color:var(--c)}
+  .chip.on{background:var(--c);border-color:var(--c);color:#fff}
+  .chip.on .dot{color:#fff;opacity:.85}
+  .toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#cfe0dc;cursor:pointer;padding:4px 0}
+  .toggle-row input{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;flex-shrink:0;position:relative;transition:background .12s,border-color .12s;background:transparent}
+  .toggle-row input:hover{border-color:var(--you)}
+  .toggle-row input:checked{background:var(--you);border-color:var(--you)}
+  .toggle-row input:checked::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #07201d;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .group-toggle{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .group-toggle .gt-label{font-size:11px;color:#7FA39D;margin-right:2px}
+  .gt-btn{font:inherit;font-size:11.5px;cursor:pointer;padding:4px 10px;border-radius:7px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);transition:all .12s}
+  .gt-btn:hover{background:#0c2422;color:#cfe0dc}
+  .gt-btn.active{background:var(--you);border-color:var(--you);color:#07201d;font-weight:600}
+
+  .projects{padding:6px 8px 28px}
+  .source-group{margin:8px 0 4px}
+  .source-label{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6b9a93;padding:8px 10px 6px 8px;font-weight:700;cursor:pointer;border-radius:0;position:sticky;top:var(--filters-h,150px);z-index:8;background:var(--spine-2);border-left:3px solid transparent}
+  .source-label.lbl-claude-code{border-left-color:#5fb8ad}
+  .source-label.lbl-codex{border-left-color:#a99ad8}
+  .source-label.lbl-cowork{border-left-color:#d8a86a}
+  .source-label.lbl-opencode{border-left-color:#5b9bd8}
+  .source-label.lbl-cursor{border-left-color:#d87093}
+  .source-label:hover{background:#0c2422;color:#8fb8b1}
+  .source-label .src-tw{font-size:9px;opacity:.7;transition:transform .15s}
+  .source-label.collapsed .src-tw{transform:rotate(-90deg)}
+  .source-label .src-name{flex:1}
+  .source-label .src-count{font-size:10px;color:#5f8a83;font-variant-numeric:tabular-nums;background:#0c2422;padding:1px 7px;border-radius:999px;letter-spacing:0}
+  .proj{margin:1px 0}
+  .proj-head{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;border-radius:8px;cursor:pointer;color:#DCE7E4;background:transparent;border:0;font:inherit;text-align:left}
+  .proj-head:hover{background:#0c2422}
+  .proj-head .tw{transition:transform .15s;opacity:.7;font-size:10px}
+  .proj.collapsed .tw{transform:rotate(-90deg)}
+  .proj-head .name{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .proj-head .count{font-size:10.5px;color:#7FA39D;font-variant-numeric:tabular-nums}
+  .proj-check{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;flex-shrink:0;position:relative;transition:background .12s,border-color .12s;background:transparent}
+  .proj-check:hover{border-color:var(--you)}
+  .proj-check:checked{background:var(--you);border-color:var(--you)}
+  .proj-check:checked::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #07201d;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .sessions{list-style:none;margin:0 0 4px;padding:0 0 0 4px;overflow:hidden}
+  .proj.collapsed .sessions{display:none}
+  .sessions-flat{padding-left:0}
+  .sess{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;border:0;background:transparent;color:#C3D3CF;font:inherit;cursor:pointer;padding:7px 10px 7px 18px;border-left:2px solid transparent;border-radius:0 6px 6px 0;font-size:12.5px;line-height:1.35}
+  .sess:hover{background:#0c2422;color:#fff}
+  .sess.active{background:#0c2422;color:#fff;border-left-color:var(--you)}
+  .sess.done{opacity:.5}
+  .sess.done .sess-title{text-decoration:line-through}
+  .sess-check{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;flex-shrink:0;margin-top:1px;position:relative;transition:background .12s,border-color .12s;background:transparent}
+  .sess-check:hover{border-color:var(--claude)}
+  .sess-check:checked{background:var(--claude);border-color:var(--claude)}
+  .sess-check:checked::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .sess-body{min-width:0;flex:1}
+  .sess-title{display:block;overflow:hidden;text-overflow:ellipsis}
+  .sess .meta{display:flex;gap:7px;flex-wrap:wrap;font-size:10px;color:#6f928c;margin-top:3px}
+  .sess .badge-arch{background:#c79a4a;color:#241402;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:700}
+  .sess .src-mini{padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:700}
+  .sess .src-mini.src-claude-code{background:#2f8f82;color:#04211d}
+  .sess .src-mini.src-codex{background:#8b7fd4;color:#150f2e}
+  .sess .src-mini.src-cowork{background:#d49a52;color:#241402}
+  .sess .src-mini.src-opencode{background:#5b9bd8;color:#04162e}
+  .sess .src-mini.src-cursor{background:#d87093;color:#2e0414}
+
+  .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:40px;color:var(--ink-soft)}
+  .empty .big{font-family:var(--display);font-size:28px;color:var(--ink);margin:0}
+  .empty p{margin:0;max-width:440px;line-height:1.55;font-size:14px}
+  .empty .hintbox{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;font-size:12.5px;color:var(--ink-soft);text-align:left;max-width:470px}
+  .empty code{font-family:var(--mono);background:var(--tool-bg);padding:1px 5px;border-radius:4px;color:#6b5e3d}
+
+  .doc{max-width:840px;margin:0 auto;padding:30px 38px 120px}
+  .doc-head{border-bottom:2px solid var(--line-strong);padding-bottom:16px;margin-bottom:6px}
+  .doc-head h1{font-family:var(--display);font-weight:600;font-size:26px;line-height:1.2;margin:0 0 8px}
+  .doc-head .crumbs{display:flex;gap:9px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-soft)}
+  .crumbs .pill{background:var(--panel);border:1px solid var(--line);padding:3px 9px;border-radius:999px}
+  .crumbs .pill b{color:var(--ink);font-weight:600}
+  .crumbs .src-pill{border:none;font-weight:700}
+  .crumbs .src-pill.src-claude-code{background:#2f8f82;color:#04211d}
+  .crumbs .src-pill.src-codex{background:#8b7fd4;color:#150f2e}
+  .crumbs .src-pill.src-cowork{background:#d49a52;color:#241402}
+  .crumbs .src-pill.src-opencode{background:#5b9bd8;color:#04162e}
+  .crumbs .src-pill.src-cursor{background:#d87093;color:#2e0414}
+  .doc-actions{display:flex;gap:8px;margin-top:12px}
+  .mini{font:inherit;font-size:12px;cursor:pointer;padding:5px 10px;border-radius:7px;border:1px solid var(--line-strong);background:var(--panel);color:var(--ink-soft)}
+  .mini:hover{background:var(--tool-bg)}
+
+  .turn{border-bottom:1px solid var(--line);padding:0}
+  .turn-head{display:grid;grid-template-columns:24px 64px 1fr auto;align-items:center;gap:0;padding:14px 0 14px;cursor:pointer}
+  .turn-head .tcheck{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:5px;cursor:pointer;position:relative;transition:background .12s,border-color .12s;background:transparent}
+  .turn-head .tcheck:hover{border-color:var(--claude)}
+  .turn-head .tcheck:checked{background:var(--claude);border-color:var(--claude)}
+  .turn-head .tcheck:checked::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .turn-head .tag{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#fff;padding:3px 7px;border-radius:5px;display:inline-block;justify-self:start}
+  .turn[data-type="user"] .tag{background:var(--you)}
+  .turn[data-type="assistant"] .tag{background:var(--claude)}
+  .turn[data-type="tool"] .tag{background:var(--tool)}
+  .turn-head .preview{font-size:13px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:4px}
+  .turn-copy{font:inherit;font-size:11px;color:var(--ink-soft);background:transparent;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;opacity:0;transition:opacity .12s;margin-left:8px;white-space:nowrap}
+  .turn:hover .turn-copy{opacity:1}
+  .turn-copy:hover{background:var(--tool-bg);color:var(--ink)}
+  .turn-copy.ok{color:var(--claude);border-color:var(--claude)}
+  .turn-head .chev{font-size:11px;color:var(--ink-soft);opacity:.6;transition:transform .15s}
+  .turn.collapsed .chev{transform:rotate(-90deg)}
+  .turn-body{padding:0 0 18px 88px;font-size:15px;line-height:1.62}
+  .turn.collapsed .turn-body{display:none}
+  .turn.done{opacity:.45}
+  .turn.done .preview{text-decoration:line-through}
+  .turn[data-type="tool"] .turn-body{background:var(--tool-bg);border:1px solid #e6e0d2;border-radius:9px;padding:12px 14px;margin-left:88px;font-size:13.5px}
+  .toollabel{font-family:var(--mono);font-size:12px;color:#6b5e3d;font-weight:600;margin-bottom:6px;display:block}
+
+  .turn-body p{margin:0 0 12px} .turn-body p:last-child{margin-bottom:0}
+  .turn-body h1,.turn-body h2,.turn-body h3,.turn-body h4{font-family:var(--display);line-height:1.25;margin:16px 0 8px;font-weight:600}
+  .turn-body h1{font-size:20px} .turn-body h2{font-size:17px} .turn-body h3{font-size:15px} .turn-body h4{font-size:14px}
+  .turn-body ul,.turn-body ol{margin:0 0 12px;padding-left:22px}
+  .turn-body li{margin:3px 0}
+  .turn-body code{font-family:var(--mono);font-size:.88em;background:#eef1ee;padding:1px 5px;border-radius:4px}
+  .turn-body pre{background:var(--code-bg);color:var(--code-fg);border-radius:9px;padding:13px 15px;overflow-x:auto;margin:0 0 12px;font-size:12.8px;line-height:1.5}
+  .turn-body pre code{background:transparent;padding:0;color:inherit;font-size:inherit}
+  .turn-body a{color:var(--claude)}
+  .turn-body strong{font-weight:650}
+
+  .countbar{position:sticky;top:0;z-index:5;background:rgba(250,250,246,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:9px 38px;font-size:12px;color:var(--ink-soft);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .countbar .n{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .loadwrap{padding:50px 40px;text-align:center;color:var(--ink-soft)}
+
+  .sidebar::-webkit-scrollbar,.reader::-webkit-scrollbar{width:10px}
+  .sidebar::-webkit-scrollbar-thumb{background:#1d3b39;border-radius:8px}
+  .reader::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px}
+  :focus-visible{outline:2px solid var(--you);outline-offset:2px;border-radius:4px}
+
+  @media (max-width:860px){
+    .shell{grid-template-columns:1fr}
+    .sidebar{position:fixed;inset:auto 0 0 0;top:108px;max-height:60vh;z-index:20;display:none}
+    .sidebar.open{display:block}
+    .doc{padding:20px 16px 100px}
+    .turn-body,.turn[data-type="tool"] .turn-body{padding-left:0;margin-left:0}
+    .turn-head{grid-template-columns:24px 56px 1fr}
+    .menu-toggle{display:inline-flex !important}
+  }
+  .menu-toggle{display:none}
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <button class="btn ghost menu-toggle" id="menuToggle" aria-label="Projects">☰</button>
+    <div class="brand"><span class="mark">agentlog</span><span class="sub" id="backupStamp">local viewer · 100% offline</span></div>
+    <div class="grow"></div>
+    <div class="global-count" id="globalCount"></div>
+    <button class="btn-log" id="btnLang" title="Language">🌐 ES</button>
+    <button class="btn-log" id="btnAnalytics">📊 analytics</button>
+    <button class="btn-log" id="btnLog">⟳ runs</button>
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="search" placeholder="Search…" autocomplete="off">
+    </div>
+    <button class="btn ghost sm" id="exportBtn">Save progress</button>
+    <button class="btn ghost sm" id="importBtn">Load</button>
+    <input id="importFile" type="file" accept="application/json" hidden>
+    <button class="btn" id="openBtn">Open folder</button>
+    <input id="folder" type="file" webkitdirectory directory multiple hidden>
+  </header>
+
+  <div class="an-tooltip" id="anTooltip"></div>
+
+  <div class="log-panel" id="logPanel">
+    <h3 id="lbl-runs-title">Latest backup runs</h3>
+    <div id="logBody"><div class="log-empty"></div></div>
+  </div>
+
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="filters">
+        <h3 id="lbl-show-blocks">Show blocks</h3>
+        <div class="types" id="types">
+          <span class="chip on" data-type="user"><span class="dot"></span><span id="lbl-chip-user">You</span></span>
+          <span class="chip on" data-type="assistant"><span class="dot"></span><span id="lbl-chip-assistant">Assistant</span></span>
+          <span class="chip on" data-type="tool"><span class="dot"></span><span id="lbl-chip-tool">Tools</span></span>
+        </div>
+        <h3 id="lbl-view">View</h3>
+        <label class="toggle-row"><input type="checkbox" id="hideDone" checked><span id="lbl-hide-done">Hide marked conversations</span></label>
+        <label class="toggle-row"><input type="checkbox" id="hideArchived" checked><span id="lbl-hide-archived">Hide archived</span></label>
+        <label class="toggle-row"><input type="checkbox" id="collapseAll"><span id="lbl-collapse-turns">Collapse all turns</span></label>
+        <div class="group-toggle">
+          <span class="gt-label" id="lbl-group-by">Group by:</span>
+          <button class="gt-btn" data-mode="source" id="gtSource">Tool</button>
+          <button class="gt-btn active" data-mode="project" id="gtProject">Project</button>
+        </div>
+      </div>
+      <nav class="projects" id="projects"></nav>
+    </aside>
+
+    <main class="reader" id="reader">
+      <div class="empty" id="emptyState">
+        <h2 class="big" id="empty-title">Your build log</h2>
+        <p id="empty-p">Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.</p>
+        <div class="hintbox" id="empty-how"></div>
+      </div>
+    </main>
+
+    <section class="analytics" id="analytics" style="display:none">
+      <div class="an-head">
+        <h2 id="an-title">Analytics</h2>
+        <button class="btn-log" id="btnCloseAnalytics">← back to the list</button>
+      </div>
+      <div class="an-grid" id="anGrid"></div>
+    </section>
+  </div>
+
+<script>
+"use strict";
+const STORE_KEY = "buildlog_progress_v2";
+const state = {
+  sessions: [], projects: new Map(), sources: new Map(),
+  activeId: null,
+  types: { user:true, assistant:true, tool:true },
+  query: "", hideDone:true, hideArchived:true, collapseAll:false,
+  backupInfo:{}, collapsedSources:{}, groupMode:"project",
+  lang:"en",
+  progress: {}  // { [sessionId]: { done:bool, turns:{ [i]:bool } } }
+};
+
+/* ---------- i18n ---------- */
+const I18N = {
+  en: {
+    doc_title:"agentlog · Session viewer",
+    sub_default:"local viewer · 100% offline",
+    last_backup:"last backup",
+    save_progress:"Save progress", load:"Load", open_folder:"Open folder",
+    analytics:"📊 analytics", runs:"⟳ runs", search:"Search…",
+    show_blocks:"Show blocks", you:"You", assistant:"Assistant", tools:"Tools",
+    view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
+    collapse_turns:"Collapse all turns", group_by:"Group by:", by_tool:"Tool", by_project:"Project",
+    runs_title:"Latest backup runs", runs_empty:"No record yet. The backup writes here every time it runs.",
+    empty_title:"Your build log",
+    empty_p:"Open the folder that holds your markdown backups. They're grouped by source and project, with dates, and you can mark what you've reviewed.",
+    empty_how_t:"How to start",
+    empty_how:"1. Click <b>Open folder</b>.<br>2. Pick the folder with your <code>markdown-*</code> backups (it reads every subfolder).<br>3. Progress is saved automatically; use <b>Save progress</b> for a file backup.<br><br>Everything runs on your machine. Nothing is uploaded.",
+    an_title:"Analytics", back_to_list:"← back to the list",
+    measure_by:"Measure by:", conversations_btn:"Conversations", turns_btn:"Turns",
+    summary:"Summary", n_conversations:"conversations", n_tools:"tools", n_projects:"projects", n_archived:"archived", n_active:"active",
+    activity_over_time:"Activity over time", no_data_sources:"No data for the selected sources.",
+    daily_activity:"Daily activity (last year)", no_data:"No data. Load a folder first.",
+    day:"Day", week:"Week", month:"Month", dow:["","Mon","","Wed","","Fri",""],
+    metric_conv:"conversations", metric_turns:"turns",
+    top_projects:"Top 5 projects by", no_activity:"no activity", total:"total", period_total:"period total",
+    archived_badge:"archived", n_turns:"turns", mark_reviewed:"Mark as reviewed",
+    project_pill:"Project", copy_conv:"Copy conversation",
+    mark_conv:"Mark conversation as reviewed", unmark_conv:"Unmark conversation",
+    collapse_expand:"Collapse/expand all", copy:"copy", copied:"✓ copied",
+    mark_turn:"Mark turn", copy_turn:"Copy this turn", tool_tag:"Tool",
+    no_turns_match:"No turn matches the active filters.", no_results:"No results.",
+    reading:"Reading", sessions_word:"sessions", no_md:"No <b>.md</b> files found in that folder.",
+    bad_progress:"Couldn't read that progress file.",
+  },
+  es: {
+    doc_title:"agentlog · Visor de sesiones",
+    sub_default:"visor local · 100% offline",
+    last_backup:"último respaldo",
+    save_progress:"Guardar progreso", load:"Cargar", open_folder:"Abrir carpeta",
+    analytics:"📊 analytics", runs:"⟳ corridas", search:"Buscar…",
+    show_blocks:"Mostrar bloques", you:"Tú", assistant:"Asistente", tools:"Herramientas",
+    view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
+    collapse_turns:"Colapsar todos los turnos", group_by:"Agrupar por:", by_tool:"Herramienta", by_project:"Proyecto",
+    runs_title:"Últimas corridas del respaldo", runs_empty:"Sin registro todavía. El respaldo escribe acá cada vez que corre.",
+    empty_title:"Tu registro de construcción",
+    empty_p:"Abrí la carpeta que contiene tus markdowns. Se agrupan por fuente y proyecto, con fecha, y podés marcar lo revisado.",
+    empty_how_t:"Cómo empezar",
+    empty_how:"1. Tocá <b>Abrir carpeta</b>.<br>2. Elegí la carpeta con tus <code>markdown-*</code> (lee todas las subcarpetas).<br>3. El progreso se guarda solo; usá <b>Guardar progreso</b> para un respaldo en archivo.<br><br>Todo corre en tu equipo. Nada se sube a internet.",
+    an_title:"Analytics", back_to_list:"← volver a la lista",
+    measure_by:"Medir por:", conversations_btn:"Conversaciones", turns_btn:"Turnos",
+    summary:"Resumen", n_conversations:"conversaciones", n_tools:"herramientas", n_projects:"proyectos", n_archived:"archivadas", n_active:"activas",
+    activity_over_time:"Actividad en el tiempo", no_data_sources:"Sin datos para las fuentes seleccionadas.",
+    daily_activity:"Actividad diaria (último año)", no_data:"Sin datos. Cargá una carpeta primero.",
+    day:"Día", week:"Semana", month:"Mes", dow:["","Lun","","Mié","","Vie",""],
+    metric_conv:"conversaciones", metric_turns:"turnos",
+    top_projects:"Top 5 proyectos por", no_activity:"sin actividad", total:"total", period_total:"total del período",
+    archived_badge:"archivada", n_turns:"turnos", mark_reviewed:"Marcar como revisada",
+    project_pill:"Proyecto", copy_conv:"Copiar conversación",
+    mark_conv:"Marcar conversación como revisada", unmark_conv:"Desmarcar conversación",
+    collapse_expand:"Colapsar/expandir todos", copy:"copiar", copied:"✓ copiado",
+    mark_turn:"Marcar turno", copy_turn:"Copiar este turno", tool_tag:"Herr.",
+    no_turns_match:"Ningún turno coincide con los filtros activos.", no_results:"Sin resultados.",
+    reading:"Leyendo", sessions_word:"sesiones", no_md:"No encontré archivos <b>.md</b> en esa carpeta.",
+    bad_progress:"No pude leer ese archivo de progreso.",
+  }
+};
+function t(k){ const d=I18N[state.lang]||I18N.en; return (k in d)?d[k]:(I18N.en[k]!==undefined?I18N.en[k]:k); }
+const T = t;  // alias for scopes where `t` is shadowed (e.g. turn loops)
+function detectLang(){
+  try{ const saved=localStorage.getItem("buildlog_lang"); if(saved==="en"||saved==="es") return saved; }catch(e){}
+  return (navigator.language||"en").toLowerCase().startsWith("es") ? "es" : "en";
+}
+function setLang(l){
+  state.lang=l;
+  try{ localStorage.setItem("buildlog_lang", l); }catch(e){}
+  document.documentElement.lang=l;
+  applyStaticI18n();
+  // re-render dynamic parts
+  renderBackupStamp(); renderGlobalCount(); renderRunLog();
+  if(state.sessions.length){ renderSidebar(); if(state.activeId) openSession(state.activeId); }
+  if(document.getElementById("analytics").style.display==="block") renderAnalytics();
+  const lb=document.getElementById("btnLang"); if(lb) lb.textContent = l==="en" ? "🌐 ES" : "🌐 EN";
+}
+function applyStaticI18n(){
+  document.title=t("doc_title");
+  const set=(id,val,html)=>{ const el=document.getElementById(id); if(el){ if(html) el.innerHTML=val; else el.textContent=val; } };
+  set("lbl-show-blocks",t("show_blocks"));
+  set("lbl-chip-user",t("you")); set("lbl-chip-assistant",t("assistant")); set("lbl-chip-tool",t("tools"));
+  set("lbl-view",t("view"));
+  set("lbl-hide-done",t("hide_done")); set("lbl-hide-archived",t("hide_archived")); set("lbl-collapse-turns",t("collapse_turns"));
+  set("lbl-group-by",t("group_by")); set("gtSource",t("by_tool")); set("gtProject",t("by_project"));
+  set("exportBtn",t("save_progress")); set("importBtn",t("load")); set("openBtn",t("open_folder"));
+  set("btnAnalytics",t("analytics")); set("btnLog",t("runs"));
+  const s=document.getElementById("search"); if(s) s.placeholder=t("search");
+  set("lbl-runs-title",t("runs_title"));
+  set("an-title",t("an_title")); set("btnCloseAnalytics",t("back_to_list"));
+  set("empty-title",t("empty_title")); set("empty-p",t("empty_p"));
+  set("empty-how",`<b>${t("empty_how_t")}</b><br>${t("empty_how")}`,true);
+}
+
+/* ---------- persistencia ---------- */
+function loadProgress(){
+  try{ const raw = localStorage.getItem(STORE_KEY); if(raw) state.progress = JSON.parse(raw); }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state.progress)); }catch(e){}
+}
+function prog(id){ if(!state.progress[id]) state.progress[id] = {done:false, turns:{}}; return state.progress[id]; }
+
+/* ---------- helpers ---------- */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function formatDate(iso, withTime){
+  if(!iso) return "";
+  const d=new Date(iso);
+  if(isNaN(d)) return String(iso).slice(0,10);  // fallback: lo que haya
+  const opts = withTime
+    ? {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}
+    : {day:'2-digit', month:'short', year:'numeric'};
+  return d.toLocaleString(undefined, opts);  // zona horaria local del navegador
+}
+
+function setStickyOffsets(){
+  const f=document.querySelector(".filters");
+  if(f) document.documentElement.style.setProperty("--filters-h", f.offsetHeight+"px");
+}
+window.addEventListener("resize", setStickyOffsets);
+
+function renderRunLog(){
+  const body=document.getElementById("logBody"); if(!body) return;
+  const log=state.runLog||[];
+  if(!log.length){ body.innerHTML=`<div class="log-empty">${t("runs_empty")}</div>`; return; }
+  const fuentes=["claude","codex","cowork","opencode","cursor"];
+  body.innerHTML=log.map((e,idx)=>{
+    const fecha=formatDate(e.date||e.fecha,true)||e.date||e.fecha||"?";
+    const det=Object.entries(e).filter(([k])=>k!=="fecha"&&k!=="date"&&k!=="total").map(([k,v])=>`${k} ${v}`).join(" · ");
+    // delta respecto a la corrida siguiente en el historial (la anterior en el tiempo)
+    const prev=log[idx+1];
+    let deltaTotal="", deltaSrc="";
+    if(prev){
+      const dt=(e.total||0)-(prev.total||0);
+      if(dt>0) deltaTotal=`<span class="lr-delta up">+${dt}</span>`;
+      else if(dt<0) deltaTotal=`<span class="lr-delta down">${dt}</span>`;
+      const cambios=fuentes.map(f=>{
+        const d=(e[f]||0)-(prev[f]||0);
+        if(d>0) return `<span class="ds up">+${d} ${f}</span>`;
+        if(d<0) return `<span class="ds down">${d} ${f}</span>`;
+        return "";
+      }).filter(Boolean).join(" ");
+      if(cambios) deltaSrc=`<div class="lr-deltas">${cambios}</div>`;
+    }
+    return `<div class="log-row"><span class="lr-left"><span class="lr-fecha">${escapeHtml(fecha)}</span><br><span class="lr-detalle">${escapeHtml(det)}</span>${deltaSrc}</span><span class="lr-total">${e.total!=null?e.total:"?"}${deltaTotal}</span></div>`;
+  }).join("");
+}
+
+function renderGlobalCount(){
+  const el=document.getElementById("globalCount"); if(!el) return;
+  const total=state.sessions.length;
+  if(!total){ el.textContent=""; return; }
+  const arch=state.sessions.filter(s=>s.archivada).length;
+  const act=total-arch;
+  const rev=state.sessions.filter(s=>prog(s.id).done).length;
+  const w = state.lang==="es"
+    ? `conversaciones <span class="gc-split">· ${act} activas · ${arch} archivadas · ${rev} revisadas</span>`
+    : `conversations <span class="gc-split">· ${act} active · ${arch} archived · ${rev} reviewed</span>`;
+  el.innerHTML=`<span class="gc-total">${total}</span> ${w}`;
+}
+
+function renderBackupStamp(){
+  const el=document.getElementById("backupStamp"); if(!el) return;
+  const info=state.backupInfo||{};
+  const fechas=Object.values(info).map(v=>v&&(v.generated||v.generado)).filter(Boolean);
+  if(!fechas.length){ el.textContent=t("sub_default"); el.title=""; return; }
+  fechas.sort();
+  const ultima=fechas[fechas.length-1];
+  el.textContent=t("last_backup")+" · "+formatDate(ultima,true);
+  // per-source detail in the tooltip
+  const det=Object.entries(info).map(([k,v])=>`${k}: ${formatDate(v.generated||v.generado,true)} (${v.conversations||v.conversaciones||0})`).join("\n");
+  el.title=det;
+}
+
+function renderMarkdown(src){
+  const lines = String(src).replace(/\r\n/g,"\n").split("\n");
+  let html="", i=0;
+  const inline=(t)=>{
+    t=escapeHtml(t);
+    const codes=[];
+    t=t.replace(/`([^`]+)`/g,(m,c)=>{codes.push(c);return `\u0000${codes.length-1}\u0000`;});
+    t=t.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+    t=t.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,"$1<em>$2</em>");
+    t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+    t=t.replace(/\u0000(\d+)\u0000/g,(m,n)=>`<code>${escapeHtml(codes[+n])}</code>`);
+    return t;
+  };
+  while(i<lines.length){
+    let line=lines[i];
+    const fence=line.match(/^```(\w*)\s*$/);
+    if(fence){ let buf=[]; i++; while(i<lines.length&&!/^```\s*$/.test(lines[i])){buf.push(lines[i]);i++;} i++; html+=`<pre><code>${escapeHtml(buf.join("\n"))}</code></pre>`; continue; }
+    const h=line.match(/^(#{1,4})\s+(.*)$/);
+    if(h){ const lv=h[1].length; html+=`<h${lv}>${inline(h[2])}</h${lv}>`; i++; continue; }
+    if(/^\s*[-*]\s+/.test(line)){ let items=[]; while(i<lines.length&&/^\s*[-*]\s+/.test(lines[i])){items.push(lines[i].replace(/^\s*[-*]\s+/,""));i++;} html+="<ul>"+items.map(x=>`<li>${inline(x)}</li>`).join("")+"</ul>"; continue; }
+    if(/^\s*\d+\.\s+/.test(line)){ let items=[]; while(i<lines.length&&/^\s*\d+\.\s+/.test(lines[i])){items.push(lines[i].replace(/^\s*\d+\.\s+/,""));i++;} html+="<ol>"+items.map(x=>`<li>${inline(x)}</li>`).join("")+"</ol>"; continue; }
+    if(/^\s*$/.test(line)){ i++; continue; }
+    let para=[line]; i++;
+    while(i<lines.length&&!/^\s*$/.test(lines[i])&&!/^```/.test(lines[i])&&!/^#{1,4}\s/.test(lines[i])&&!/^\s*[-*]\s+/.test(lines[i])&&!/^\s*\d+\.\s+/.test(lines[i])){ para.push(lines[i]); i++; }
+    html+=`<p>${inline(para.join(" "))}</p>`;
+  }
+  return html;
+}
+
+/* ---------- parse .md ---------- */
+function parseMeta(text){
+  const m = text.match(/<!--([^]*?)-->/);
+  const meta = {fecha:"", proyecto:"", fuente:"", archivada:false};
+  if(m){
+    const body=m[1];
+    // accept English (date/project/source/archived) and legacy Spanish keys
+    const get=(...keys)=>{ for(const k of keys){ const r=body.match(new RegExp(k+"\\s*:\\s*([^|]+?)\\s*(\\||$)")); if(r&&r[1].trim()) return r[1].trim(); } return ""; };
+    meta.fecha=get("date","fecha"); meta.proyecto=get("project","proyecto"); meta.fuente=get("source","fuente");
+    meta.archivada = /(archived|archivada)\s*:\s*true/i.test(body);
+  }
+  return meta;
+}
+function parseTurns(text){
+  // separa por encabezados ### Tú / ### Claude / ### Codex; herramientas dentro de bloques asistente
+  const lines=text.replace(/\r\n/g,"\n").split("\n");
+  const turns=[]; let speaker=null, buf=[];
+  const flush=()=>{
+    if(speaker===null) { buf=[]; return; }
+    const md=buf.join("\n").trim();
+    if(md){
+      // dividir en sub-turnos por marcadores de herramienta
+      const parts=splitTools(md, speaker);
+      for(const p of parts) turns.push(p);
+    }
+    buf=[];
+  };
+  for(const l of lines){
+    const head=l.match(/^###\s+(.+?)\s*$/);
+    if(head){ flush(); const who=head[1].toLowerCase(); speaker=(who.includes("tú")||who.includes("tu")||who.includes("you")||who.includes("user"))?"user":"assistant"; continue; }
+    if(/^#\s+/.test(l)) continue;        // título
+    if(/^<!--/.test(l)) continue;        // metadata
+    if(speaker===null) continue;
+    buf.push(l);
+  }
+  flush();
+  return turns;
+}
+function splitTools(md, speaker){
+  // dentro de un bloque, separar texto de bloques [herramienta:]/[resultado]
+  const lines=md.split("\n"); const out=[]; let i=0; let textbuf=[];
+  const flushText=()=>{ const t=textbuf.join("\n").trim(); if(t) out.push({type:speaker, md:t}); textbuf=[]; };
+  while(i<lines.length){
+    const l=lines[i];
+    if(/^\s*\[(tool|result|herramienta|resultado)\b/i.test(l)){
+      flushText();
+      const label=l.trim().replace(/^\[/,"").replace(/\]\s*$/,"").trim();
+      let body=[]; i++;
+      let j=i; while(j<lines.length&&lines[j].trim()==="") j++;
+      if(j<lines.length&&/^```/.test(lines[j])){ body.push(lines[j]); j++; while(j<lines.length&&!/^```\s*$/.test(lines[j])){body.push(lines[j]);j++;} if(j<lines.length){body.push(lines[j]);j++;} i=j; }
+      out.push({type:"tool", label, md:body.join("\n").trim()});
+      continue;
+    }
+    textbuf.push(l); i++;
+  }
+  flushText();
+  return out;
+}
+function previewText(t){
+  let s=(t.type==="tool"&&t.label)?t.label:(t.md||"");
+  s=s.replace(/[#*`>\-]/g," ").replace(/```[a-z]*/g,"").replace(/\s+/g," ").trim();
+  return s.slice(0,90);
+}
+
+/* ---------- carga ---------- */
+async function handleFiles(fileList){
+  const files=Array.from(fileList).filter(f=>/\.md$/i.test(f.name));
+  // recolectar sellos de backup (_backup-info.json)
+  state.backupInfo={};
+  for(const f of Array.from(fileList).filter(f=>/_backup-info\.json$/i.test(f.name))){
+    try{ const j=JSON.parse(await f.text()); Object.assign(state.backupInfo, j); }catch(e){}
+  }
+  // recolectar historial de corridas (.sync-state/log.json)
+  state.runLog=[];
+  for(const f of Array.from(fileList).filter(f=>/(^|\/)log\.json$/i.test(f.webkitRelativePath||f.name))){
+    try{ const j=JSON.parse(await f.text()); if(Array.isArray(j)) state.runLog=j; }catch(e){}
+  }
+  if(!files.length){ document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("no_md")}</div>`; return; }
+  document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("reading")} ${files.length} ${t("sessions_word")}…</div>`;
+  state.sessions=[]; state.projects=new Map(); state.sources=new Map();
+  for(const f of files){
+    const rel=f.webkitRelativePath||f.name;
+    const text=await f.text();
+    const meta=parseMeta(text);
+    const tm=text.match(/^#\s+(.+)$/m);
+    const title=tm?tm[1].trim():f.name.replace(/\.md$/,"");
+    const turns=parseTurns(text);
+    const fuente=meta.fuente || (rel.toLowerCase().includes("codex")?"codex":"claude-code");
+    const segs=rel.split("/");
+    const folder=segs.length>=2?segs[segs.length-2]:"";
+    const project=meta.proyecto||folder||"(sin proyecto)";
+    const s={ id:rel, title, project, fuente, fecha:meta.fecha, archivada:meta.archivada, turns };
+    state.sessions.push(s);
+    if(!state.sources.has(fuente)) state.sources.set(fuente,new Map());
+    const pm=state.sources.get(fuente);
+    if(!pm.has(project)) pm.set(project,{project, fuente, sessions:[], collapsed:false, checked:true});
+    pm.get(project).sessions.push(s);
+  }
+  // ordenar por fecha desc dentro de cada proyecto
+  for(const pm of state.sources.values())
+    for(const p of pm.values())
+      p.sessions.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  // los grupos del modo activo arrancan colapsados; el usuario expande el que quiera
+  state.collapsedSources={};
+  if(state.groupMode==="source"){
+    for(const fuente of state.sources.keys()) state.collapsedSources["src:"+fuente]=true;
+  } else {
+    const projs=new Set();
+    for(const pm of state.sources.values()) for(const p of pm.values()) projs.add(p.project);
+    for(const pr of projs) state.collapsedSources["proj:"+pr]=true;
+  }
+  // elegir la primera conversación activa y sin revisar (la más reciente)
+  const elegibles=state.sessions
+    .filter(s=>!s.archivada && !prog(s.id).done)
+    .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const primera=elegibles[0]||state.sessions[0];
+  if(primera){
+    // expandir el grupo que la contiene para que se vea seleccionada en la lista
+    const key=state.groupMode==="project" ? "proj:"+primera.project : "src:"+primera.fuente;
+    delete state.collapsedSources[key];
+  }
+  renderSidebar();
+  renderBackupStamp();
+  renderGlobalCount();
+  renderRunLog();
+  setStickyOffsets();
+  if(primera) openSession(primera.id);
+}
+
+/* ---------- sidebar ---------- */
+function matchesQuery(s){
+  if(!state.query) return true;
+  if(s.title.toLowerCase().includes(state.query)) return true;
+  return s.turns.some(t=>(t.md||"").toLowerCase().includes(state.query)||(t.label||"").toLowerCase().includes(state.query));
+}
+function sessionVisible(s){
+  if(state.hideArchived && s.archivada) return false;
+  if(state.hideDone && prog(s.id).done) return false;
+  if(!matchesQuery(s)) return false;
+  return true;
+}
+function niceSource(f){ return f==="claude-code"?"Claude Code":f==="codex"?"Codex":f==="cowork"?"Cowork":f==="opencode"?"OpenCode":f==="cursor"?"Cursor":f; }
+
+const SRC_COLORS={"claude-code":"#2f8f82","codex":"#8b7fd4","cowork":"#d49a52","opencode":"#5b9bd8","cursor":"#d87093"};
+function srcColor(f){ return SRC_COLORS[f]||"#888"; }
+
+// ---------- ANALYTICS ----------
+const AN={ gran:"month", srcOn:{}, metric:"conv" };  // metric: 'conv' o 'turns'
+
+// peso de una sesión según la métrica activa: 1 conversación, o su cantidad de turnos
+function sesPeso(s){ return AN.metric==="turns" ? (s.turns?s.turns.length:0) : 1; }
+function metricLabel(){ return AN.metric==="turns" ? t("metric_turns") : t("metric_conv"); }
+
+function showAnalytics(){
+  document.getElementById("reader").style.display="none";
+  document.getElementById("analytics").style.display="block";
+  // inicializar fuentes activas (todas on la primera vez)
+  for(const f of state.sources.keys()) if(!(f in AN.srcOn)) AN.srcOn[f]=true;
+  renderAnalytics();
+}
+function hideAnalytics(){
+  document.getElementById("analytics").style.display="none";
+  document.getElementById("reader").style.display="";
+}
+
+function periodKey(iso, gran){
+  const d=new Date(iso); if(isNaN(d)) return null;
+  if(gran==="day") return d.toISOString().slice(0,10);
+  if(gran==="month") return d.toISOString().slice(0,7);
+  // week: año-Wnn (ISO week aproximada)
+  const onejan=new Date(d.getFullYear(),0,1);
+  const week=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
+  return d.getFullYear()+"-W"+String(week).padStart(2,"0");
+}
+
+function renderAnalytics(){
+  const grid=document.getElementById("anGrid"); grid.innerHTML="";
+  const sesiones=state.sessions||[];
+  if(!sesiones.length){ grid.innerHTML=`<div class="an-card">${t("no_data")}</div>`; return; }
+  // global metric toggle
+  const mc=document.createElement("div"); mc.className="an-metric";
+  mc.innerHTML=`<span class="am-label">${t("measure_by")}</span>
+    <button class="am-btn ${AN.metric==='conv'?'active':''}" data-m="conv">${t("conversations_btn")}</button>
+    <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">${t("turns_btn")}</button>`;
+  mc.querySelectorAll(".am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.metric=b.dataset.m; renderAnalytics(); }));
+  grid.appendChild(mc);
+  // orden: resumen, heatmap, top, actividad
+  grid.appendChild(cardSummary(sesiones));
+  grid.appendChild(cardHeatmap(sesiones));
+  grid.appendChild(cardTopProjects(sesiones));
+  grid.appendChild(cardStackedArea(sesiones));
+  setupTooltips();
+}
+
+function setupTooltips(){
+  const tip=document.getElementById("anTooltip");
+  const grid=document.getElementById("anGrid");
+  if(grid._tipBound) return; grid._tipBound=true;
+  grid.addEventListener("mouseover",e=>{
+    const r=e.target.closest("rect[data-tip]"); if(!r) return;
+    tip.innerHTML=r.getAttribute("data-tip"); tip.classList.add("show");
+  });
+  grid.addEventListener("mousemove",e=>{
+    if(!tip.classList.contains("show")) return;
+    let x=e.clientX+14, y=e.clientY+14;
+    const w=tip.offsetWidth, h=tip.offsetHeight;
+    if(x+w>window.innerWidth-10) x=e.clientX-w-14;
+    if(y+h>window.innerHeight-10) y=e.clientY-h-14;
+    tip.style.left=x+"px"; tip.style.top=y+"px";
+  });
+  grid.addEventListener("mouseout",e=>{
+    if(e.target.closest("rect[data-tip]")) tip.classList.remove("show");
+  });
+}
+
+// 1+2: área apilada temporal con selector de fuentes y toggle de granularidad
+function cardStackedArea(sesiones){
+  const card=document.createElement("div"); card.className="an-card";
+  const fuentes=[...state.sources.keys()];
+  card.innerHTML=`<h3>${t("activity_over_time")}</h3>`;
+  // controles
+  const ctrl=document.createElement("div"); ctrl.className="an-controls";
+  for(const f of fuentes){
+    const t=document.createElement("span");
+    t.className="an-src-toggle"+(AN.srcOn[f]?"":" off");
+    t.innerHTML=`<span class="sw" style="background:${srcColor(f)}"></span>${niceSource(f)}`;
+    t.addEventListener("click",()=>{ AN.srcOn[f]=!AN.srcOn[f]; renderAnalytics(); });
+    ctrl.appendChild(t);
+  }
+  const gran=document.createElement("div"); gran.className="an-gran";
+  for(const [g,lbl] of [["day",t("day")],["week",t("week")],["month",t("month")]]){
+    const b=document.createElement("button"); b.textContent=lbl;
+    if(AN.gran===g) b.className="active";
+    b.addEventListener("click",()=>{ AN.gran=g; renderAnalytics(); });
+    gran.appendChild(b);
+  }
+  ctrl.appendChild(gran);
+  card.appendChild(ctrl);
+
+  // datos: período -> {fuente: count}
+  const activos=fuentes.filter(f=>AN.srcOn[f]);
+  const periodos=new Map();
+  for(const s of sesiones){
+    if(!AN.srcOn[s.fuente]) continue;
+    const k=periodKey(s.fecha, AN.gran); if(!k) continue;
+    if(!periodos.has(k)) periodos.set(k,{});
+    periodos.get(k)[s.fuente]=(periodos.get(k)[s.fuente]||0)+sesPeso(s);
+  }
+  const keys=[...periodos.keys()].sort();
+  if(!keys.length){ const p=document.createElement("p"); p.textContent=t("no_data_sources"); card.appendChild(p); return card; }
+
+  // dimensiones
+  const W=860,H=280,padL=38,padB=40,padT=10,padR=10;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const maxY=Math.max(...keys.map(k=>activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0)),1);
+  let svg=`<svg class="an-svg" viewBox="0 0 ${W} ${H}">`;
+  // eje Y (líneas guía)
+  for(let i=0;i<=4;i++){ const y=padT+plotH-(plotH*i/4); const val=Math.round(maxY*i/4);
+    svg+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+    svg+=`<text class="an-axis" x="${padL-6}" y="${y+3}" text-anchor="end">${val}</text>`; }
+
+  if(AN.gran==="day"){
+    // ÁREA APILADA (muchos puntos: mejor como flujo)
+    // acumulado por capa: para cada fuente, su línea superior = suma de esta + las de abajo
+    const xAt=(i)=>padL+(keys.length<=1?plotW/2:plotW*i/(keys.length-1));
+    const yAt=(val)=>padT+plotH-plotH*val/maxY;
+    let baseline=keys.map(()=>0);  // acumulado inferior
+    for(const f of activos){
+      // top = baseline + valor de f
+      const tops=keys.map((k,i)=>baseline[i]+(periodos.get(k)[f]||0));
+      // path: subir por tops, bajar por baseline invertido
+      let p=`M ${xAt(0)} ${yAt(tops[0])}`;
+      for(let i=1;i<keys.length;i++) p+=` L ${xAt(i)} ${yAt(tops[i])}`;
+      for(let i=keys.length-1;i>=0;i--) p+=` L ${xAt(i)} ${yAt(baseline[i])}`;
+      p+=" Z";
+      svg+=`<path d="${p}" fill="${srcColor(f)}" fill-opacity="0.85" stroke="${srcColor(f)}" stroke-width="0.5"/>`;
+      baseline=tops;
+    }
+    // puntos invisibles para tooltip por período (sobre el total)
+    keys.forEach((k,i)=>{
+      const totalK=activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0);
+      const det=activos.filter(f=>periodos.get(k)[f]).map(f=>`<span class='tt-dot' style='background:${srcColor(f)}'></span>${niceSource(f)}: <b>${periodos.get(k)[f]}</b>`).join("<br>");
+      svg+=`<rect x="${xAt(i)-3}" y="${padT}" width="6" height="${plotH}" fill="transparent" data-tip="<b>${k}</b><br>${det||t('no_activity')}<br><span style='opacity:.7'>${t('total')}: ${totalK} ${metricLabel()}</span>"/>`;
+    });
+  } else {
+    // BARRAS APILADAS (pocos puntos: valores claros)
+    const bw=plotW/keys.length;
+    keys.forEach((k,i)=>{
+      const x=padL+i*bw; let acc=0;
+      const totalK=activos.reduce((a,f)=>a+(periodos.get(k)[f]||0),0);
+      for(const f of activos){
+        const v=periodos.get(k)[f]||0; if(!v) continue;
+        const h=plotH*v/maxY; const y=padT+plotH-acc-h;
+        svg+=`<rect x="${x+1}" y="${y}" width="${Math.max(bw-2,1)}" height="${h}" fill="${srcColor(f)}" data-tip="<span class='tt-dot' style='background:${srcColor(f)}'></span><b>${niceSource(f)}</b><br>${k}: <b>${v}</b> ${metricLabel()}<br><span style='opacity:.7'>${t('period_total')}: ${totalK}</span>"/>`;
+        acc+=h;
+      }
+    });
+  }
+  // etiquetas X (algunas)
+  const step=Math.ceil(keys.length/8);
+  const bwx=plotW/keys.length;
+  keys.forEach((k,i)=>{ if(i%step!==0) return;
+    const x=AN.gran==="day" ? padL+(keys.length<=1?plotW/2:plotW*i/(keys.length-1)) : padL+i*bwx+bwx/2;
+    svg+=`<text class="an-axis" x="${x}" y="${H-padB+14}" text-anchor="middle">${k}</text>`; });
+  svg+=`</svg>`;
+  const div=document.createElement("div"); div.innerHTML=svg; card.appendChild(div);
+  return card;
+}
+
+// 3: top 5 proyectos
+function cardTopProjects(sesiones){
+  const card=document.createElement("div"); card.className="an-card";
+  card.innerHTML=`<h3>${t("top_projects")} ${metricLabel()}</h3>`;
+  const byProj=new Map();
+  for(const s of sesiones){ byProj.set(s.project,(byProj.get(s.project)||0)+sesPeso(s)); }
+  const top=[...byProj.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(!top.length) return card;
+  const max=top[0][1];
+  const W=820, rowH=34, H=top.length*rowH+10;
+  let svg=`<svg class="an-svg" viewBox="0 0 ${W} ${H}">`;
+  top.forEach(([proj,n],i)=>{
+    const y=i*rowH+6; const barMax=W-220; const bw=Math.max(barMax*n/max,2);
+    svg+=`<text class="an-bar-label" x="0" y="${y+16}">${escapeHtml(proj.length>28?proj.slice(0,28)+"…":proj)}</text>`;
+    svg+=`<rect x="180" y="${y+4}" width="${bw}" height="18" rx="4" fill="var(--you)" data-tip="<b>${escapeHtml(proj)}</b><br><b>${n}</b> ${metricLabel()}"/>`;
+    svg+=`<text class="an-bar-label" x="${180+bw+8}" y="${y+17}" style="font-weight:700;fill:var(--ink)">${n}</text>`;
+  });
+  svg+=`</svg>`;
+  const div=document.createElement("div"); div.innerHTML=svg; card.appendChild(div);
+  return card;
+}
+
+// 5: heatmap estilo GitHub del último año
+function cardHeatmap(sesiones){
+  const card=document.createElement("div"); card.className="an-card";
+  card.innerHTML=`<h3>${t("daily_activity")}</h3>`;
+  const counts=new Map();
+  for(const s of sesiones){ const k=periodKey(s.fecha,"day"); if(k) counts.set(k,(counts.get(k)||0)+sesPeso(s)); }
+  const hoy=new Date(); const inicio=new Date(hoy); inicio.setDate(inicio.getDate()-364);
+  // alinear al domingo anterior
+  inicio.setDate(inicio.getDate()-inicio.getDay());
+  const cell=11, gap=3, W=53*(cell+gap)+30, H=7*(cell+gap)+20;
+  let maxC=0; for(const v of counts.values()) if(v>maxC) maxC=v;
+  const shade=(v)=>{ if(!v) return "#ebedf0"; const t=v/maxC; if(t>.75) return "#1a6b5f"; if(t>.5) return "#2f8f82"; if(t>.25) return "#5fb3a6"; return "#a8d5cd"; };
+  let svg=`<svg class="an-svg" viewBox="0 0 ${W} ${H}">`;
+  let d=new Date(inicio), col=0;
+  while(d<=hoy){
+    const wd=d.getDay(); const k=d.toISOString().slice(0,10); const v=counts.get(k)||0;
+    const x=30+col*(cell+gap), y=wd*(cell+gap);
+    svg+=`<rect class="heat-cell" x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2" fill="${shade(v)}" data-tip="<b>${k}</b><br><b>${v}</b> ${metricLabel()}"/>`;
+    d.setDate(d.getDate()+1); if(d.getDay()===0) col++;
+  }
+  // etiquetas de día
+  t("dow").forEach((lbl,i)=>{ if(lbl) svg+=`<text class="an-axis" x="2" y="${i*(cell+gap)+cell}">${lbl}</text>`; });
+  svg+=`</svg>`;
+  const div=document.createElement("div"); div.innerHTML=svg; card.appendChild(div);
+  return card;
+}
+
+// 6: resumen archivadas/activas + totales
+function cardSummary(sesiones){
+  const card=document.createElement("div"); card.className="an-card";
+  card.innerHTML=`<h3>${t("summary")}</h3>`;
+  const total=sesiones.length;
+  const arch=sesiones.filter(s=>s.archivada).length;
+  const proyectos=new Set(sesiones.map(s=>s.project)).size;
+  const fuentes=state.sources.size;
+  const cont=document.createElement("div"); cont.className="an-summary";
+  const stats=[[total,t("n_conversations")],[fuentes,t("n_tools")],[proyectos,t("n_projects")],[arch,t("n_archived")],[total-arch,t("n_active")]];
+  cont.innerHTML=stats.map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
+  card.appendChild(cont);
+  return card;
+}
+
+function makeSessionLi(s){
+  const pr=prog(s.id);
+  const li=document.createElement("div");
+  li.className="sess"+(s.id===state.activeId?" active":"")+(pr.done?" done":"");
+  const arch = s.archivada?`<span class="badge-arch">${t("archived_badge")}</span>`:"";
+  const tc=s.turns.length;
+  // in project mode, show which tool each session comes from
+  const srcTag = state.groupMode==="project" ? `<span class="src-mini src-${escapeHtml(s.fuente)}">${escapeHtml(niceSource(s.fuente))}</span>` : "";
+  li.innerHTML=`<input type="checkbox" class="sess-check" ${pr.done?"checked":""} title="${t("mark_reviewed")}">
+    <span class="sess-body"><span class="sess-title">${escapeHtml(s.title)}</span>
+    <span class="meta"><span>${escapeHtml(formatDate(s.fecha,false))}</span><span>${tc} ${t("n_turns")}</span>${srcTag}${arch}</span></span>`;
+  li.querySelector(".sess-check").addEventListener("change",e=>{ e.stopPropagation(); pr.done=e.target.checked; saveProgress(); renderSidebar(); renderGlobalCount(); });
+  li.querySelector(".sess-body").addEventListener("click",()=>openSession(s.id));
+  return li;
+}
+
+function makeSubgroup(label, sessions, flat){
+  const vis=sessions.filter(sessionVisible);
+  if(!vis.length) return null;
+  vis.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  // flat: sin encabezado de subgrupo, directamente la lista (modo proyecto)
+  if(flat){
+    const ul=document.createElement("ul"); ul.className="sessions sessions-flat";
+    for(const s of vis) ul.appendChild(makeSessionLi(s));
+    return {el:ul, count:vis.length};
+  }
+  const key=label;
+  if(!(key in state._projCollapse)) state._projCollapse[key]=false;
+  const collapsed=state._projCollapse[key];
+  const wrap=document.createElement("div"); wrap.className="proj"+(collapsed?" collapsed":"");
+  const head=document.createElement("div"); head.className="proj-head";
+  head.innerHTML=`<span class="tw">▾</span><span class="name">${escapeHtml(label)}</span><span class="count">${vis.length}</span>`;
+  head.addEventListener("click",()=>{ state._projCollapse[key]=!collapsed; renderSidebar(); });
+  const ul=document.createElement("ul"); ul.className="sessions";
+  for(const s of vis) ul.appendChild(makeSessionLi(s));
+  wrap.appendChild(head); wrap.appendChild(ul);
+  return {el:wrap, count:vis.length};
+}
+
+function renderSidebar(){
+  const root=document.getElementById("projects"); root.innerHTML="";
+  if(!state._projCollapse) state._projCollapse={};
+
+  // Construir grupos de primer nivel según el modo.
+  // groups: [ { id, name, subgroups: [ [label, sessions[]], ... ] } ]
+  let groups=[];
+  if(state.groupMode==="source"){
+    const srcOrder=["claude-code","codex",...[...state.sources.keys()].filter(k=>k!=="claude-code"&&k!=="codex")];
+    for(const fuente of srcOrder){
+      const pm=state.sources.get(fuente); if(!pm) continue;
+      const subs=[...pm.keys()].sort((a,b)=>a.localeCompare(b,'es')).map(label=>[label, pm.get(label).sessions]);
+      groups.push({id:"src:"+fuente, name:niceSource(fuente), subgroups:subs});
+    }
+  } else {
+    // por proyecto: juntar todas las sesiones de todas las fuentes, agrupar por proyecto.
+    // Dentro NO se subagrupa por fuente: una sola lista ordenada por fecha, con pastilla de source.
+    const byProj=new Map();
+    for(const pm of state.sources.values())
+      for(const p of pm.values())
+        for(const s of p.sessions){
+          if(!byProj.has(p.project)) byProj.set(p.project,[]);
+          byProj.get(p.project).push(s);
+        }
+    for(const proj of [...byProj.keys()].sort((a,b)=>a.localeCompare(b,'es'))){
+      // subgrupo único con label vacío → se rinde como lista directa
+      groups.push({id:"proj:"+proj, name:proj, subgroups:[["",byProj.get(proj)]], flat:true});
+    }
+  }
+
+  for(const g of groups){
+    // armar subgrupos visibles primero (para la cuenta total)
+    const subEls=[]; let total=0;
+    for(const [label, sessions] of g.subgroups){
+      const sg=makeSubgroup(label, sessions, g.flat);
+      if(sg){ subEls.push(sg.el); total+=sg.count; }
+    }
+    if(!subEls.length) continue;
+
+    const grp=document.createElement("div"); grp.className="source-group";
+    const collapsed=!!state.collapsedSources[g.id];
+    const lbl=document.createElement("div");
+    const srcCls = g.id.startsWith("src:") ? " lbl-"+g.id.slice(4) : "";
+    lbl.className="source-label"+(collapsed?" collapsed":"")+srcCls;
+    lbl.innerHTML=`<span class="src-tw">▾</span><span class="src-name">${escapeHtml(g.name)}</span><span class="src-count">${total}</span>`;
+    lbl.addEventListener("click",()=>{ state.collapsedSources[g.id]=!collapsed; renderSidebar(); });
+    grp.appendChild(lbl);
+    if(!collapsed) for(const el of subEls) grp.appendChild(el);
+    root.appendChild(grp);
+  }
+  if(!root.children.length) root.innerHTML=`<div style="padding:18px;color:#7FA39D;font-size:13px">${t("no_results")}</div>`;
+}
+
+/* ---------- reader ---------- */
+function openSession(id){
+  state.activeId=id;
+  const s=state.sessions.find(x=>x.id===id); if(!s) return;
+  const reader=document.getElementById("reader"); const pr=prog(id);
+  const counts={user:0,assistant:0,tool:0}; s.turns.forEach(t=>counts[t.type]=(counts[t.type]||0)+1);
+
+  let turnsHtml="";
+  s.turns.forEach((t,idx)=>{
+    if(!state.types[t.type]) return;
+    const asstName = s.fuente==="codex"?"Codex":s.fuente==="opencode"?"OpenCode":s.fuente==="cursor"?"Cursor":"Claude";
+    const tagText=t.type==="user"?T("you"):t.type==="assistant"?asstName:T("tool_tag");
+    const tdone=!!pr.turns[idx];
+    const collapsed=state.collapseAll;
+    let body=(t.type==="tool"&&t.label)?`<span class="toollabel">${escapeHtml(t.label)}</span>`+renderMarkdown(t.md||""):renderMarkdown(t.md||"");
+    turnsHtml+=`<div class="turn ${collapsed?'collapsed':''} ${tdone?'done':''}" data-type="${t.type}" data-idx="${idx}">
+      <div class="turn-head">
+        <input type="checkbox" class="tcheck" ${tdone?'checked':''} title="${T('mark_turn')}">
+        <span class="tag">${tagText}</span>
+        <span class="preview">${escapeHtml(previewText(t))}</span>
+        <button class="turn-copy" data-idx="${idx}" title="${T('copy_turn')}">${T('copy')}</button>
+      </div>
+      <div class="turn-body">${body}</div>
+    </div>`;
+  });
+
+  reader.innerHTML=`
+    <div class="countbar">
+      <span><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</span>
+      <span><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</span>
+      <span><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</span>
+      ${s.archivada?`<span class="n" style="color:#9a7b2e">· ${t("archived_badge")}</span>`:''}
+    </div>
+    <article class="doc">
+      <div class="doc-head">
+        <h1>${escapeHtml(s.title)}</h1>
+        <div class="crumbs">
+          <span class="pill src-pill src-${escapeHtml(s.fuente)}">${escapeHtml(niceSource(s.fuente))}</span>
+          <span class="pill">${t("project_pill")} · <b>${escapeHtml(s.project)}</b></span>
+          <span class="pill"><b>${escapeHtml(formatDate(s.fecha,true))}</b></span>
+          <span class="pill"><b>${s.turns.length}</b> ${t("n_turns")}</span>
+        </div>
+        <div class="doc-actions">
+          <button class="mini" id="copyConv">${t("copy_conv")}</button>
+          <button class="mini" id="markDone">${pr.done?t("unmark_conv"):t("mark_conv")}</button>
+          <button class="mini" id="toggleAllTurns">${t("collapse_expand")}</button>
+        </div>
+      </div>
+      ${turnsHtml||`<div class="loadwrap">${t("no_turns_match")}</div>`}
+    </article>`;
+  reader.scrollTop=0;
+
+  // listeners de turnos
+  reader.querySelectorAll(".turn").forEach(el=>{
+    const idx=+el.dataset.idx;
+    el.querySelector(".turn-head").addEventListener("click",e=>{ if(e.target.classList.contains("tcheck")||e.target.classList.contains("turn-copy"))return; el.classList.toggle("collapsed"); });
+    el.querySelector(".tcheck").addEventListener("change",e=>{ e.stopPropagation(); pr.turns[idx]=e.target.checked; el.classList.toggle("done",e.target.checked); saveProgress(); });
+    el.querySelector(".turn-copy").addEventListener("click",e=>{
+      e.stopPropagation();
+      const t=s.turns[idx];
+      const txt=turnToText(t,s);
+      copyText(txt, e.target);
+    });
+  });
+  document.getElementById("markDone").addEventListener("click",()=>{ pr.done=!pr.done; saveProgress(); renderSidebar(); renderGlobalCount(); openSession(id); });
+  document.getElementById("toggleAllTurns").addEventListener("click",()=>{ const allC=[...reader.querySelectorAll(".turn")].every(t=>t.classList.contains("collapsed")); reader.querySelectorAll(".turn").forEach(t=>t.classList.toggle("collapsed",!allC)); });
+  document.getElementById("copyConv").addEventListener("click",e=>{
+    const srcName = niceSource(s.fuente);
+    const lines=[`# ${s.title}`, `${formatDate(s.fecha,true)} · ${srcName} · ${s.project}`, ""];
+    s.turns.forEach(t=>lines.push(turnToText(t,s),""));
+    copyText(lines.join("\n"), e.target);
+  });
+
+  renderSidebar();
+  document.getElementById("sidebar").classList.remove("open");
+}
+
+function turnToText(t,s){
+  const toolWord = state.lang==="es" ? "Herramienta" : "Tool";
+  const who = t.type==="user" ? T("you") : t.type==="assistant" ? (s.fuente==="claude-code"||s.fuente==="cowork"?"Claude":niceSource(s.fuente)) : toolWord;
+  let body = (t.type==="tool"&&t.label) ? (t.label+"\n"+(t.md||"")) : (t.md||"");
+  return `### ${who}\n${body.trim()}`;
+}
+
+function copyText(txt, btn){
+  const done=()=>{ if(btn){ const o=btn.textContent; btn.textContent=t("copied"); btn.classList.add("ok"); setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok");},1200); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done));
+  } else { fallbackCopy(txt,done); }
+}
+function fallbackCopy(txt,cb){
+  const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(ta); if(cb)cb();
+}
+
+/* ---------- eventos ---------- */
+document.getElementById("openBtn").addEventListener("click",()=>document.getElementById("folder").click());
+document.getElementById("folder").addEventListener("change",e=>handleFiles(e.target.files));
+document.getElementById("types").addEventListener("click",e=>{ const chip=e.target.closest(".chip"); if(!chip)return; const t=chip.dataset.type; state.types[t]=!state.types[t]; chip.classList.toggle("on",state.types[t]); if(state.activeId)openSession(state.activeId); });
+let st=null;
+document.getElementById("search").addEventListener("input",e=>{ clearTimeout(st); st=setTimeout(()=>{ state.query=e.target.value.trim().toLowerCase(); renderSidebar(); },140); });
+document.getElementById("hideDone").addEventListener("change",e=>{ state.hideDone=e.target.checked; renderSidebar(); });
+function setGroupMode(mode){
+  state.groupMode=mode;
+  document.getElementById("gtSource").classList.toggle("active",mode==="source");
+  document.getElementById("gtProject").classList.toggle("active",mode==="project");
+  // when switching mode, collapse all groups of the new mode
+  state.collapsedSources={};
+  if(mode==="source"){ for(const f of state.sources.keys()) state.collapsedSources["src:"+f]=true; }
+  else {
+    const projs=new Set();
+    for(const pm of state.sources.values()) for(const p of pm.values()) projs.add(p.project);
+    for(const pr of projs) state.collapsedSources["proj:"+pr]=true;
+  }
+  renderSidebar(); setStickyOffsets();
+}
+document.getElementById("gtSource").addEventListener("click",()=>setGroupMode("source"));
+document.getElementById("gtProject").addEventListener("click",()=>setGroupMode("project"));
+document.getElementById("btnLang").addEventListener("click",()=>setLang(state.lang==="en"?"es":"en"));
+document.getElementById("btnAnalytics").addEventListener("click",showAnalytics);
+document.getElementById("btnCloseAnalytics").addEventListener("click",hideAnalytics);
+document.getElementById("btnLog").addEventListener("click",()=>{
+  document.getElementById("logPanel").classList.toggle("open");
+});
+document.addEventListener("click",e=>{
+  const p=document.getElementById("logPanel"), b=document.getElementById("btnLog");
+  if(p.classList.contains("open") && !p.contains(e.target) && e.target!==b) p.classList.remove("open");
+});
+document.getElementById("hideArchived").addEventListener("change",e=>{ state.hideArchived=e.target.checked; renderSidebar(); });
+document.getElementById("collapseAll").addEventListener("change",e=>{ state.collapseAll=e.target.checked; if(state.activeId)openSession(state.activeId); });
+document.getElementById("menuToggle").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
+
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(state.progress,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="agentlog-progress.json"; a.click();
+});
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  try{ state.progress=JSON.parse(await f.text()); saveProgress(); renderSidebar(); renderGlobalCount(); if(state.activeId)openSession(state.activeId); }
+  catch(err){ alert(t("bad_progress")); }
+});
+
+loadProgress();
+setLang(detectLang());
+</script>
+
+<script>
+(function(){
+  const DEMO = {"files": [{"name": "2026-05-19__Build_the_settings_page__d4eef27c.md", "text": "# Build the settings page\n\n<!-- date: 2026-05-19T03:54:00 | id: d4eef27c-401f-451f-81ac-954f7c4abe62 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-05-25__Add_the_export-to-PDF_button__3b0e95b0.md", "text": "# Add the export-to-PDF button\n\n<!-- date: 2026-05-25T11:08:00 | id: 3b0e95b0-0acf-4bc2-972d-6d212830b329 | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Cursor\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Cursor\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2025-11-19__Debug_the_N+1_query__cacadfee.md", "text": "# Debug the N+1 query\n\n<!-- date: 2025-11-19T07:34:00 | id: cacadfee-6c91-412a-9a0f-48905d4830df | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nLooks good. Ship it.\n\n### Claude\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-04-14__Clean_up_the_dead_code__e3151e4c.md", "text": "# Clean up the dead code\n\n<!-- date: 2026-04-14T02:47:00 | id: e3151e4c-488b-462c-863e-c98b8528e686 | project: todo-app | source: claude-code | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-02-16__Set_up_the_seed_script__69a9ba99.md", "text": "# Set up the seed script\n\n<!-- date: 2026-02-16T06:14:00 | id: 69a9ba99-825c-4f9e-ae42-9a8434c3fc85 | project: data-pipeline | source: codex | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Codex\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-04-16__Add_dark_mode_toggle__e239e0e8.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-04-16T05:58:00 | id: e239e0e8-dabc-4942-a477-3af912f33fcb | project: cli-tool | source: codex | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Codex\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Codex\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Codex\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n"}, {"name": "2026-06-02__Add_the_export-to-PDF_button__7c2a9625.md", "text": "# Add the export-to-PDF button\n\n<!-- date: 2026-06-02T07:19:00 | id: 7c2a9625-dcd1-4ddc-ab8a-e339d9285270 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nLooks good. Ship it.\n\n### Claude\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-05-08__Handle_the_websocket_reconnect__8cf8ec4e.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-05-08T11:47:00 | id: 8cf8ec4e-1ca4-4117-9490-055612a991f6 | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-02-04__Wire_up_the_Stripe_webhook__2e02f54f.md", "text": "# Wire up the Stripe webhook\n\n<!-- date: 2026-02-04T09:08:00 | id: 2e02f54f-55f5-44db-bbf1-c5853de0c95d | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-05-03__Add_the_export-to-PDF_button__d698e0be.md", "text": "# Add the export-to-PDF button\n\n<!-- date: 2026-05-03T09:00:00 | id: d698e0be-86e5-4c77-91e7-70f0247b2f78 | project: api-server | source: codex | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Codex\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Codex\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-04-02__Generate_the_sitemap__b2dbf3e0.md", "text": "# Generate the sitemap\n\n<!-- date: 2026-04-02T09:16:00 | id: b2dbf3e0-f68e-41f9-bce3-73a34a21062b | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Cursor\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Cursor\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Cursor\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nLooks good. Ship it.\n\n### Cursor\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-04-15__Write_the_README_for_the_API__40fa2ed4.md", "text": "# Write the README for the API\n\n<!-- date: 2026-04-15T08:56:00 | id: 40fa2ed4-fd92-4fc8-a0dd-b5c5bc48180d | project: ml-notebook | source: opencode | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### OpenCode\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nLooks good. Ship it.\n\n### OpenCode\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-03-23__Set_up_the_seed_script__7de517af.md", "text": "# Set up the seed script\n\n<!-- date: 2026-03-23T11:56:00 | id: 7de517af-8b69-4976-bb42-a2926d320402 | project: api-server | source: codex | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Codex\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Codex\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-14__Handle_the_websocket_reconnect__8c29f087.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-04-14T04:30:00 | id: 8c29f087-8847-4bb2-8dd4-2535bca14d5d | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n"}, {"name": "2026-05-15__Generate_the_sitemap__9a12c3e8.md", "text": "# Generate the sitemap\n\n<!-- date: 2026-05-15T11:47:00 | id: 9a12c3e8-da3b-432e-b598-65d3c232b048 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n"}, {"name": "2026-04-19__Optimize_the_image_pipeline__d3d8ed79.md", "text": "# Optimize the image pipeline\n\n<!-- date: 2026-04-19T09:38:00 | id: d3d8ed79-dce1-4164-be72-74dfe302a91a | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2025-12-04__Write_the_README_for_the_API__15a4b55e.md", "text": "# Write the README for the API\n\n<!-- date: 2025-12-04T04:44:00 | id: 15a4b55e-a744-4927-b27c-7a59425ee70f | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-06-03__Set_up_the_seed_script__0d6e7f33.md", "text": "# Set up the seed script\n\n<!-- date: 2026-06-03T08:30:00 | id: 0d6e7f33-4e53-445c-b61d-3af8d11079cc | project: cli-tool | source: codex | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Codex\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n"}, {"name": "2026-01-04__Migrate_to_TypeScript_strict_mode__29f88d53.md", "text": "# Migrate to TypeScript strict mode\n\n<!-- date: 2026-01-04T08:30:00 | id: 29f88d53-fc2d-46d8-bcf1-7c997c3736b0 | project: todo-app | source: claude-code | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-03-04__Add_rate_limiting_to_the_API__8cb7fb3f.md", "text": "# Add rate limiting to the API\n\n<!-- date: 2026-03-04T09:59:00 | id: 8cb7fb3f-cd96-4893-8f54-e679429373a5 | project: data-pipeline | source: codex | archived: true -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Codex\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nLooks good. Ship it.\n\n### Codex\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2025-11-24__Add_pagination_to_the_feed__564778c4.md", "text": "# Add pagination to the feed\n\n<!-- date: 2025-11-24T08:59:00 | id: 564778c4-844d-40e4-80c0-bb9103f248a1 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n"}, {"name": "2026-03-17__Debug_the_N+1_query__c7cb3ef4.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-03-17T03:34:00 | id: c7cb3ef4-41b0-4a4a-83c0-ea26993e9152 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n"}, {"name": "2026-03-02__Debug_the_N+1_query__35f7c8c4.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-03-02T09:26:00 | id: 35f7c8c4-dff2-4233-a3ea-d4dbb5b587ef | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Cursor\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Cursor\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Cursor\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nLooks good. Ship it.\n\n### Cursor\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2025-11-28__Generate_the_sitemap__02464a06.md", "text": "# Generate the sitemap\n\n<!-- date: 2025-11-28T06:17:00 | id: 02464a06-f7c7-4c5b-8291-2898d1d78857 | project: todo-app | source: claude-code | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2025-12-25__Parse_the_CSV_export__fb92d4a6.md", "text": "# Parse the CSV export\n\n<!-- date: 2025-12-25T10:32:00 | id: fb92d4a6-2825-44b2-bdb1-de3433594743 | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Cursor\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Cursor\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Cursor\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-04-06__Add_rate_limiting_to_the_API__3c92a997.md", "text": "# Add rate limiting to the API\n\n<!-- date: 2026-04-06T09:34:00 | id: 3c92a997-e767-4123-a6cc-900401dac650 | project: cli-tool | source: codex | archived: true -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Codex\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Codex\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-01-20__Add_pagination_to_the_feed__d62347b2.md", "text": "# Add pagination to the feed\n\n<!-- date: 2026-01-20T06:51:00 | id: d62347b2-9c14-4b88-9195-77956aca4432 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n"}, {"name": "2026-04-18__Optimize_the_image_pipeline__2642e13e.md", "text": "# Optimize the image pipeline\n\n<!-- date: 2026-04-18T04:50:00 | id: 2642e13e-e9e5-4f03-9d70-c2355a027d76 | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-03-20__Add_rate_limiting_to_the_API__ec3328d1.md", "text": "# Add rate limiting to the API\n\n<!-- date: 2026-03-20T06:25:00 | id: ec3328d1-5e55-46a9-81b9-3d089afca98e | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-19__Add_pagination_to_the_feed__0a0409d6.md", "text": "# Add pagination to the feed\n\n<!-- date: 2026-04-19T10:55:00 | id: 0a0409d6-1f1d-465a-8b90-593d37215870 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n"}, {"name": "2026-01-21__Parse_the_CSV_export__d1c1f24d.md", "text": "# Parse the CSV export\n\n<!-- date: 2026-01-21T02:29:00 | id: d1c1f24d-f074-40f7-a05b-304f90fa8800 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n"}, {"name": "2025-11-28__Add_dark_mode_toggle__2a89a7c7.md", "text": "# Add dark mode toggle\n\n<!-- date: 2025-11-28T10:43:00 | id: 2a89a7c7-dd71-462b-a0ee-5c028f1e5c9e | project: cli-tool | source: codex | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-04-02__Debug_the_N+1_query__b7168e18.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-04-02T07:21:00 | id: b7168e18-9f0d-4a20-88e8-95d604eba50f | project: ml-notebook | source: opencode | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n"}, {"name": "2026-02-17__Handle_the_websocket_reconnect__99dc5b13.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-02-17T09:48:00 | id: 99dc5b13-b109-4387-8349-46a55dfcdd15 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2025-12-20__Generate_the_sitemap__6a5f7c51.md", "text": "# Generate the sitemap\n\n<!-- date: 2025-12-20T03:48:00 | id: 6a5f7c51-5650-4325-8cae-98aa337535b8 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n"}, {"name": "2026-05-29__Write_the_README_for_the_API__dd573af5.md", "text": "# Write the README for the API\n\n<!-- date: 2026-05-29T03:41:00 | id: dd573af5-2cc1-4fd6-9791-5f0b8838ff5d | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Cursor\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n"}, {"name": "2025-08-09__Add_pagination_to_the_feed__65f4d288.md", "text": "# Add pagination to the feed\n\n<!-- date: 2025-08-09T10:00:00 | id: 65f4d288-25d5-4114-9e44-78c6bb427650 | project: cli-tool | source: codex | archived: true -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n"}, {"name": "2026-05-26__Add_rate_limiting_to_the_API__c00b7b76.md", "text": "# Add rate limiting to the API\n\n<!-- date: 2026-05-26T07:58:00 | id: c00b7b76-b88c-419b-8823-bf74bd94ee59 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-01-30__Handle_the_websocket_reconnect__3b5b0651.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-01-30T08:58:00 | id: 3b5b0651-a807-4da0-bc95-2d88466032c7 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-05-23__Write_the_README_for_the_API__b3a4176e.md", "text": "# Write the README for the API\n\n<!-- date: 2026-05-23T07:28:00 | id: b3a4176e-53a6-4dfc-9755-9c09db6af05d | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-03-13__Add_dark_mode_toggle__9bd79f68.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-03-13T07:41:00 | id: 9bd79f68-e3a9-4a33-9117-1d8d22eda3e6 | project: cli-tool | source: codex | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Codex\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-04-19__Generate_the_sitemap__b5f02d38.md", "text": "# Generate the sitemap\n\n<!-- date: 2026-04-19T03:20:00 | id: b5f02d38-6379-4883-a750-642c8677afc1 | project: data-pipeline | source: codex | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Codex\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Codex\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-05-13__Refactor_the_auth_middleware__0dc78387.md", "text": "# Refactor the auth middleware\n\n<!-- date: 2026-05-13T04:25:00 | id: 0dc78387-c516-4f9e-a00e-56a67acb87be | project: api-server | source: codex | archived: true -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Codex\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Codex\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Codex\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n"}, {"name": "2026-05-07__Generate_the_sitemap__e2eb83e1.md", "text": "# Generate the sitemap\n\n<!-- date: 2026-05-07T10:18:00 | id: e2eb83e1-e424-4281-9142-f2c942e2c8d9 | project: blog-astro | source: cursor | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Cursor\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-06-06__Clean_up_the_dead_code__f4563fe0.md", "text": "# Clean up the dead code\n\n<!-- date: 2026-06-06T01:31:00 | id: f4563fe0-e9c0-4b63-a2bd-0286da08502b | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n"}, {"name": "2026-04-03__Handle_the_websocket_reconnect__47dd2cfb.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-04-03T02:51:00 | id: 47dd2cfb-b872-4488-87fb-a2fac48c3e7f | project: data-pipeline | source: codex | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Codex\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Codex\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Codex\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-05-05__Add_rate_limiting_to_the_API__2c6307a5.md", "text": "# Add rate limiting to the API\n\n<!-- date: 2026-05-05T03:42:00 | id: 2c6307a5-cde6-4851-a216-45988374392a | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-03-26__Add_dark_mode_toggle__969fee20.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-03-26T07:31:00 | id: 969fee20-cc15-455f-8daa-0667c58ccb6f | project: ml-notebook | source: opencode | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### OpenCode\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### OpenCode\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### OpenCode\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-20__Add_pagination_to_the_feed__da04467e.md", "text": "# Add pagination to the feed\n\n<!-- date: 2026-04-20T01:28:00 | id: da04467e-5748-4100-8605-e6cca0e3cd53 | project: portfolio-site | source: cursor | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Cursor\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Cursor\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-05-29__Clean_up_the_dead_code__16e0d20f.md", "text": "# Clean up the dead code\n\n<!-- date: 2026-05-29T10:00:00 | id: 16e0d20f-db64-4b17-ac6b-ddc5ede8cdfb | project: ml-notebook | source: opencode | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### OpenCode\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### OpenCode\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### OpenCode\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### OpenCode\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-05-01__Write_the_README_for_the_API__bd5fa7b2.md", "text": "# Write the README for the API\n\n<!-- date: 2026-05-01T05:53:00 | id: bd5fa7b2-a17b-4929-945c-c136109304be | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nLooks good. Ship it.\n\n### Claude\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-03-18__Add_pagination_to_the_feed__9d12a375.md", "text": "# Add pagination to the feed\n\n<!-- date: 2026-03-18T05:12:00 | id: 9d12a375-3169-41c9-8c6e-007b201540ac | project: api-server | source: claude-code | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nLooks good. Ship it.\n\n### Claude\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-06-15__Write_the_README_for_the_API__dcc6d525.md", "text": "# Write the README for the API\n\n<!-- date: 2026-06-15T03:40:00 | id: dcc6d525-305f-43b9-9a75-43157aaf7575 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n"}, {"name": "2026-03-21__Debug_the_N+1_query__c874a52c.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-03-21T04:21:00 | id: c874a52c-8c9e-4932-8cd0-cbe7ea635d5c | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-05-26__Optimize_the_image_pipeline__a74072ba.md", "text": "# Optimize the image pipeline\n\n<!-- date: 2026-05-26T07:35:00 | id: a74072ba-6749-4666-ad52-68f3b4f06d8d | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n"}, {"name": "2025-08-19__Clean_up_the_dead_code__3ae59a85.md", "text": "# Clean up the dead code\n\n<!-- date: 2025-08-19T03:03:00 | id: 3ae59a85-4bc6-4429-9f20-41373956ef43 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-05-20__Add_pagination_to_the_feed__6300cdd2.md", "text": "# Add pagination to the feed\n\n<!-- date: 2026-05-20T08:37:00 | id: 6300cdd2-e17b-4cbc-8e81-5c011071e2f6 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-05-06__Build_the_settings_page__a561c782.md", "text": "# Build the settings page\n\n<!-- date: 2026-05-06T07:24:00 | id: a561c782-188a-4046-87d0-78131b5dfb5c | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-05__Refactor_the_auth_middleware__33e74303.md", "text": "# Refactor the auth middleware\n\n<!-- date: 2026-04-05T07:06:00 | id: 33e74303-c3ba-4ac3-80ec-3dbf3134ff4e | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### OpenCode\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n"}, {"name": "2026-03-15__Cache_the_expensive_aggregation__fac4bdd7.md", "text": "# Cache the expensive aggregation\n\n<!-- date: 2026-03-15T11:56:00 | id: fac4bdd7-a216-4c2e-b7a1-6c9e13a414d6 | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### OpenCode\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### OpenCode\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nLooks good. Ship it.\n\n### OpenCode\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-01-03__Debug_the_N+1_query__3f20c0b8.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-01-03T11:10:00 | id: 3f20c0b8-1bc1-4622-954d-cae5a8874066 | project: portfolio-site | source: claude-code | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-03-11__Add_dark_mode_toggle__6340bb0d.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-03-11T10:54:00 | id: 6340bb0d-d7ee-43c1-904d-ff76d5fd4d91 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n"}, {"name": "2026-06-02__Optimize_the_image_pipeline__1a8be6b6.md", "text": "# Optimize the image pipeline\n\n<!-- date: 2026-06-02T07:40:00 | id: 1a8be6b6-f4c6-4be7-a4cc-47bea8e5a460 | project: todo-app | source: claude-code | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n"}, {"name": "2026-03-21__Clean_up_the_dead_code__befcc8f9.md", "text": "# Clean up the dead code\n\n<!-- date: 2026-03-21T11:48:00 | id: befcc8f9-e59d-4a68-a83c-2ada6ef260e8 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-05__Handle_the_websocket_reconnect__07f368eb.md", "text": "# Handle the websocket reconnect\n\n<!-- date: 2026-04-05T11:09:00 | id: 07f368eb-f018-4e8e-b8ad-f11e3369acd1 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-03-23__Clean_up_the_dead_code__d87cab0b.md", "text": "# Clean up the dead code\n\n<!-- date: 2026-03-23T10:21:00 | id: d87cab0b-6109-4283-9a6b-0e25b30a58ff | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThis function is getting huge. Help me break it into smaller pieces.\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n"}, {"name": "2026-01-20__Fix_flaky_test_in_checkout_flow__f46be7e5.md", "text": "# Fix flaky test in checkout flow\n\n<!-- date: 2026-01-20T05:57:00 | id: f46be7e5-d335-4969-988d-472795e53bd2 | project: blog-astro | source: claude-code | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n"}, {"name": "2026-05-25__Migrate_to_TypeScript_strict_mode__cc6bba68.md", "text": "# Migrate to TypeScript strict mode\n\n<!-- date: 2026-05-25T10:01:00 | id: cc6bba68-a94a-483c-90b0-6d37a7a21111 | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### Claude\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nLooks good. Ship it.\n\n### Claude\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-02-17__Add_dark_mode_toggle__9c883314.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-02-17T11:00:00 | id: 9c883314-4064-4ee6-b481-75c9b1ce29a6 | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### OpenCode\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### OpenCode\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-06-04__Wire_up_the_Stripe_webhook__d08ea931.md", "text": "# Wire up the Stripe webhook\n\n<!-- date: 2026-06-04T07:08:00 | id: d08ea931-f449-4f99-b445-bb7cb5813b4c | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### OpenCode\n\nI'll render the report to a hidden canvas and use the print-to-PDF API behind a button.\n\n[tool: Edit \u2192 src/components/ReportActions.tsx]\n\n### You\n\nLooks good. Ship it.\n\n### OpenCode\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-03-28__Wire_up_the_Stripe_webhook__27158af5.md", "text": "# Wire up the Stripe webhook\n\n<!-- date: 2026-03-28T04:59:00 | id: 27158af5-4c22-4376-8690-80fe495e22c4 | project: ml-notebook | source: opencode | archived: false -->\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### OpenCode\n\nLooking at the CI config now. The difference is the Node version \u2014 CI pins 18, your machine runs 20.\n\n[tool: Bash]\n```bash\nnode --version && cat .github/workflows/ci.yml | grep node-version\n```\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### OpenCode\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-01-05__Add_dark_mode_toggle__a3a3c7c1.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-01-05T07:48:00 | id: a3a3c7c1-9d0e-4811-87ac-4dbc3cf9caae | project: todo-app | source: claude-code | archived: false -->\n\n### You\n\nThere's an N+1 query somewhere in the dashboard. Find it and fix it.\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### Claude\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nCan you take a look at why the build is failing on CI but passing locally?\n\n### Claude\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n"}, {"name": "2026-04-25__Add_dark_mode_toggle__750d0734.md", "text": "# Add dark mode toggle\n\n<!-- date: 2026-04-25T02:02:00 | id: 750d0734-b010-4490-ba99-5f201cee88c0 | project: todo-app | source: cowork | archived: false -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### Claude\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2025-12-29__Clean_up_the_dead_code__c6ce70ec.md", "text": "# Clean up the dead code\n\n<!-- date: 2025-12-29T05:08:00 | id: c6ce70ec-3ce5-4883-868c-32b5846f810b | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nAdd a button that exports the current report as a PDF.\n\n### OpenCode\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nLooks good. Ship it.\n\n### OpenCode\n\nCommitted and pushed. The CI run is green.\n"}, {"name": "2026-03-31__Build_the_settings_page__c858e650.md", "text": "# Build the settings page\n\n<!-- date: 2026-03-31T06:31:00 | id: c858e650-7f02-4f43-8e1e-024cff75e7ef | project: marketing-site | source: cowork | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Claude\n\nThe toggle writes to state but never to localStorage. I'll persist it and read it on mount.\n\n[tool: Edit \u2192 src/components/ThemeToggle.tsx]\n\n### You\n\nHow do I handle websocket reconnection gracefully?\n\n### Claude\n\nAgreed, this is doing three things. Let me extract the validation and the formatting into helpers.\n\n[tool: Read \u2192 src/lib/report.ts]\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Claude\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Claude\n\nDone \u2014 added a regression test that pins the behavior.\n"}, {"name": "2026-04-15__Set_up_CI_with_GitHub_Actions__b8b62043.md", "text": "# Set up CI with GitHub Actions\n\n<!-- date: 2026-04-15T09:33:00 | id: b8b62043-0fda-4517-a1a0-73aecb665b1c | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### OpenCode\n\nGood call. I'd use keyset pagination here instead of offset \u2014 it stays fast as the table grows.\n\n[tool: Edit \u2192 src/routes/feed.ts]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### OpenCode\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-05-19__Optimize_the_image_pipeline__06f509c7.md", "text": "# Optimize the image pipeline\n\n<!-- date: 2026-05-19T04:21:00 | id: 06f509c7-5061-47df-8b89-0f1e78975328 | project: data-pipeline | source: opencode | archived: false -->\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### OpenCode\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### OpenCode\n\nHere's a minimal workflow that runs lint, typecheck and tests on every push.\n\n[tool: Write \u2192 .github/workflows/ci.yml]\n\n### You\n\nWalk me through setting up GitHub Actions for this repo.\n\n### OpenCode\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nNice. One more thing: log when the fallback path runs.\n\n### OpenCode\n\nAdded a structured log line at the fallback branch.\n"}, {"name": "2026-04-24__Debug_the_N+1_query__c3cd2808.md", "text": "# Debug the N+1 query\n\n<!-- date: 2026-04-24T08:49:00 | id: c3cd2808-3bf6-4aab-9d24-7461809fc8aa | project: cli-tool | source: codex | archived: true -->\n\n### You\n\nThe dark mode toggle doesn't persist across reloads. Can you fix it?\n\n### Codex\n\nFound it \u2014 the dashboard loads each user's orders in a loop. I'll batch it with a single join.\n\n[tool: Grep \u2192 findMany]\n\n### You\n\nI want to add pagination to the feed endpoint. What's the cleanest approach?\n\n### Codex\n\nThe trick is exponential backoff with a cap, plus resubscribing on open. Sketching it now.\n\n[tool: Write \u2192 src/lib/socket.ts]\n\n### You\n\nThat worked. Can you also add a test so it doesn't regress?\n\n### Codex\n\nDone \u2014 added a regression test that pins the behavior.\n"}], "log": [{"date": "2026-06-15T12:00:00-0300", "total": 44, "claude": 18, "codex": 9, "cowork": 6, "opencode": 4, "cursor": 7}, {"date": "2026-06-11T11:53:00-0300", "total": 41, "claude": 17, "codex": 9, "cowork": 4, "opencode": 4, "cursor": 7}, {"date": "2026-06-07T11:46:00-0300", "total": 34, "claude": 16, "codex": 8, "cowork": 3, "opencode": 2, "cursor": 5}, {"date": "2026-06-03T11:39:00-0300", "total": 29, "claude": 15, "codex": 6, "cowork": 2, "opencode": 2, "cursor": 4}, {"date": "2026-05-30T11:32:00-0300", "total": 26, "claude": 15, "codex": 6, "cowork": 1, "opencode": 0, "cursor": 4}, {"date": "2026-05-26T11:25:00-0300", "total": 20, "claude": 13, "codex": 4, "cowork": 1, "opencode": 0, "cursor": 2}, {"date": "2026-05-22T11:18:00-0300", "total": 16, "claude": 12, "codex": 3, "cowork": 0, "opencode": 0, "cursor": 1}, {"date": "2026-05-18T11:11:00-0300", "total": 14, "claude": 11, "codex": 3, "cowork": 0, "opencode": 0, "cursor": 0}], "backup": {"claude-code": {"generated": "2026-06-15T12:00:00-03:00", "conversations": 33}, "codex": {"generated": "2026-06-15T12:00:00-03:00", "conversations": 17}, "cowork": {"generated": "2026-06-15T12:00:00-03:00", "conversations": 8}, "opencode": {"generated": "2026-06-15T12:00:00-03:00", "conversations": 6}, "cursor": {"generated": "2026-06-15T12:00:00-03:00", "conversations": 14}}};
+  function mkFile(name, text){ return new File([text], name, {type:"text/markdown"}); }
+  const list = DEMO.files.map(f => mkFile(f.name, f.text));
+  list.push(mkFile("log.json", JSON.stringify(DEMO.log)));
+  list.push(mkFile("_backup-info.json", JSON.stringify(DEMO.backup)));
+  // webkitRelativePath no se puede setear; handleFiles cae a f.name, OK.
+  window.__DEMO_READY = (async function(){
+    await handleFiles(list);
+    const params = new URLSearchParams(location.search);
+    const lang = params.get("lang");
+    if(lang==="en"||lang==="es") setLang(lang);
+    const view = params.get("view") || "";   // sin param: respeta defaults del viewer
+    if(view === "source"){
+      setGroupMode("source"); state.collapsedSources = {}; renderSidebar();
+    } else if(view === "projects"){
+      state.collapsedSources = {}; renderSidebar();
+    } else if(view === "analytics"){
+      showAnalytics();
+    } else if(view === "corridas"){
+      document.getElementById("logPanel").classList.add("open");
+    }
+    window.scrollTo(0,0);
+    // "demo" badge only on a bare visit (no query params) — keeps screenshots clean
+    if(!location.search){
+      const b=document.createElement("div");
+      b.innerHTML="<b>Demo</b> · sample data — click <b>Open folder</b> to use your own";
+      b.style.cssText="position:fixed;bottom:14px;left:0;right:0;margin:0 auto;width:fit-content;z-index:9999;background:#0F2A28;color:#cfe0dc;border:1px solid #2c534f;padding:8px 16px;border-radius:999px;font:13px ui-sans-serif,system-ui;box-shadow:0 6px 22px rgba(0,0,0,.35)";
+      document.body.appendChild(b);
+      setTimeout(()=>{ b.style.transition="opacity .6s"; b.style.opacity="0"; setTimeout(()=>b.remove(),700); }, 7000);
+    }
+    window.__DEMO_VIEW_READY = true;
+    return true;
+  })();
+})();
+</script>
+
+</body>
+</html>

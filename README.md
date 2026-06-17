@@ -11,6 +11,9 @@ HTML viewer to browse, group, filter and see analytics of your usage.
 Everything runs **locally on your Mac**. Nothing is uploaded anywhere. The viewer
 UI is **bilingual (English / Spanish)** with a language toggle.
 
+**▶ [Try the live demo](https://lucasgday.github.io/agentlog/)** — runs in your
+browser with sample data, nothing to install.
+
 ---
 
 ## Why
@@ -49,6 +52,28 @@ and at hand.
 And since it's your private data, **everything runs locally**: the scripts only
 read your files and write Markdown to your disk, the viewer is a static HTML
 file. No server, no cloud, no telemetry. (See [Privacy](#privacy).)
+
+---
+
+## How it compares
+
+agentlog grew out of the same idea as YC's **Paxel** — making sense of your
+Claude Code / Codex / Cursor sessions — but with the opposite default on your
+data. Paxel runs its analysis locally yet **uploads derived data** to YC (prompt
+excerpts, file paths, commit metadata, narratives) to build an online profile; a
+community security audit found it sending more than advertised, and the launch
+promo was pulled amid the privacy backlash ([audit](https://www.gate.com/news/detail/y-combinators-paxel-ai-tool-claims-local-analysis-but-security-audit-21668126),
+[coverage](https://digg.com/ai/urogjb9u)).
+
+agentlog is **self-hosted and offline** — it only reads your local files and
+writes local Markdown. Nothing, raw or derived, leaves your machine.
+
+| | agentlog | Paxel |
+|---|---|---|
+| Data leaving your machine | **None** | Derived data uploaded to YC |
+| Hosting | Self-hosted / offline | Cloud (YC) |
+| Output | Durable Markdown archive + browsable viewer | One-shot online "builder profile" |
+| Open source | Yes (MIT) | No |
 
 ---
 
