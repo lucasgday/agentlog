@@ -256,9 +256,12 @@ if msg: print("  flag sync: "+", ".join(msg))
 PYEOF
     fi
   fi
-  # Evidence Ledger over the active Codex sessions (rollout-*.jsonl).
-  if [ "$DRY" != "1" ] && [ -d "$HOME_CODEX/sessions" ]; then
-    python3 "$PY_LEDGER" "$HOME_CODEX/sessions" "$BASE/markdown-codex" codex codex || true
+  # Evidence Ledger over active AND archived Codex sessions (both keep raw token
+  # usage; archived rollouts would otherwise show counts-only via the .md).
+  if [ "$DRY" != "1" ] && { [ -d "$HOME_CODEX/sessions" ] || [ -d "$HOME_CODEX/archived_sessions" ]; }; then
+    CODEX_RAW="$HOME_CODEX/sessions"
+    [ -d "$HOME_CODEX/archived_sessions" ] && CODEX_RAW="$CODEX_RAW:$HOME_CODEX/archived_sessions"
+    python3 "$PY_LEDGER" "$CODEX_RAW" "$BASE/markdown-codex" codex codex || true
   fi
 else
   echo "-- Codex -- (not found, skipped)"

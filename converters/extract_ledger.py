@@ -612,14 +612,19 @@ def collect_file_source(input_path, fmt, old):
                     if cur is None or size > cur[0]:
                         best[uuid] = (size, mtime, f, plabel)
         scanner = scan_claude
-    else:  # codex
-        for f in glob.glob(os.path.join(input_path, "**", "*.jsonl"), recursive=True):
-            key = "codex\t" + os.path.splitext(os.path.basename(f))[0]
-            try:
-                st = os.stat(f); size, mtime = st.st_size, int(st.st_mtime)
-            except OSError:
-                size, mtime = 0, 0
-            best[key] = (size, mtime, f, None)
+    else:  # codex — several roots (os.pathsep): active + archived sessions, both
+        # carrying token usage; dedup by the rollout uuid.
+        for root_dir in input_path.split(os.pathsep):
+            if not root_dir:
+                continue
+            for f in glob.glob(os.path.join(root_dir, "**", "*.jsonl"), recursive=True):
+                key = "codex\t" + os.path.splitext(os.path.basename(f))[0]
+                try:
+                    st = os.stat(f); size, mtime = st.st_size, int(st.st_mtime)
+                except OSError:
+                    size, mtime = 0, 0
+                if key not in best or size > best[key][0]:
+                    best[key] = (size, mtime, f, None)
         scanner = scan_codex
 
     new_cache, sessions, hits, misses = {}, [], 0, 0
