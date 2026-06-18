@@ -100,10 +100,20 @@
   .btn.sm{padding:6px 10px;font-size:12px}
 
   .shell{display:grid;grid-template-columns:340px 1fr;min-height:0}
-  .sidebar{background:linear-gradient(180deg,var(--spine),var(--spine-2));color:#DCE7E4;overflow-y:auto;border-right:1px solid #0a201e}
+  .sidebar{background:linear-gradient(180deg,var(--spine),var(--spine-2));color:#DCE7E4;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid #0a201e}
+  .side-nav{display:flex;gap:6px;padding:10px 12px 8px;border-bottom:1px solid #0a201e}
+  .side-link{flex:1;font:inherit;font-size:11.5px;cursor:pointer;padding:7px 8px;border-radius:7px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);white-space:nowrap;text-align:center}
+  .side-link:hover{background:#0c2422;color:#cfe0dc}
+  .side-link-lang{flex:0 0 auto}
+  .side-search{display:block;padding:10px 12px;border-bottom:1px solid #0a201e}
+  .side-search input{width:100%;max-width:none}
+  .side-scroll{flex:1;overflow-y:auto;min-height:0}
+  .side-foot{display:flex;gap:6px;padding:9px 12px;border-top:1px solid #0a201e}
+  .side-foot-btn{flex:1;font:inherit;font-size:11.5px;cursor:pointer;padding:7px 8px;border-radius:7px;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft);white-space:nowrap}
+  .side-foot-btn:hover{background:#0c2422;color:#cfe0dc}
   .reader{overflow-y:auto;background:var(--paper)}
 
-  .filters{padding:16px 16px 8px;position:sticky;top:0;z-index:10;background:var(--spine);border-bottom:1px solid #0a201e}
+  .filters{padding:16px 16px 8px;background:var(--spine);border-bottom:1px solid #0a201e}
   .filters h3{margin:14px 0 8px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7FA39D;font-weight:700}
   .filters h3:first-child{margin-top:0}
   .types{display:flex;gap:7px;flex-wrap:wrap}
@@ -126,7 +136,7 @@
 
   .projects{padding:6px 8px 28px}
   .source-group{margin:8px 0 4px}
-  .source-label{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6b9a93;padding:8px 10px 6px 8px;font-weight:700;cursor:pointer;border-radius:0;position:sticky;top:var(--filters-h,150px);z-index:8;background:var(--spine-2);border-left:3px solid transparent}
+  .source-label{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6b9a93;padding:8px 10px 6px 8px;font-weight:700;cursor:pointer;border-radius:0;position:sticky;top:0;z-index:8;background:var(--spine-2);border-left:3px solid transparent}
   .source-label.lbl-claude-code{border-left-color:#5fb8ad}
   .source-label.lbl-codex{border-left-color:#a99ad8}
   .source-label.lbl-cowork{border-left-color:#d8a86a}
@@ -244,8 +254,8 @@
 
   @media (max-width:860px){
     .shell{grid-template-columns:1fr}
-    .sidebar{position:fixed;inset:auto 0 0 0;top:108px;max-height:60vh;z-index:20;display:none}
-    .sidebar.open{display:block}
+    .sidebar{position:fixed;inset:auto 0 0 0;top:92px;max-height:64vh;z-index:20;display:none}
+    .sidebar.open{display:flex}
     .doc{padding:20px 16px 100px}
     .turn-body,.turn[data-type="tool"] .turn-body{padding-left:0;margin-left:0}
     .turn-head{grid-template-columns:24px 56px 1fr}
@@ -262,16 +272,6 @@
     <div class="brand"><span class="mark">agentlog</span><span class="sub" id="backupStamp">local viewer · 100% offline</span></div>
     <div class="grow"></div>
     <div class="global-count" id="globalCount"></div>
-    <button class="btn-log" id="btnLang" title="Language">🌐 ES</button>
-    <button class="btn-log" id="btnAnalytics">📊 analytics</button>
-    <button class="btn-log" id="btnLog">⟳ runs</button>
-    <div class="search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="search" placeholder="Search…" autocomplete="off">
-    </div>
-    <button class="btn ghost sm icon-btn" id="exportBtn" aria-label="Export progress">⤓</button>
-    <button class="btn ghost sm icon-btn" id="importBtn" aria-label="Import">⤒</button>
-    <input id="importFile" type="file" accept="application/json" hidden>
     <button class="btn" id="openBtn">Open folder</button>
     <input id="folder" type="file" webkitdirectory directory multiple hidden>
   </header>
@@ -285,6 +285,16 @@
 
   <div class="shell">
     <aside class="sidebar" id="sidebar">
+      <div class="side-nav">
+        <button class="side-link" id="btnAnalytics">📊 analytics</button>
+        <button class="side-link" id="btnLog">⟳ runs</button>
+        <button class="side-link side-link-lang" id="btnLang" title="Language">🌐 ES</button>
+      </div>
+      <div class="side-search search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" type="search" placeholder="Search…" autocomplete="off">
+      </div>
+      <div class="side-scroll">
       <div class="filters">
         <h3 id="lbl-show-blocks">Show blocks</h3>
         <div class="types" id="types">
@@ -303,6 +313,12 @@
         </div>
       </div>
       <nav class="projects" id="projects"></nav>
+      </div>
+      <div class="side-foot">
+        <button class="side-foot-btn" id="exportBtn">⤓ Export</button>
+        <button class="side-foot-btn" id="importBtn">⤒ Import</button>
+        <input id="importFile" type="file" accept="application/json" hidden>
+      </div>
     </aside>
 
     <main class="reader" id="reader">
@@ -341,7 +357,7 @@ const I18N = {
     doc_title:"agentlog · Session viewer",
     sub_default:"local viewer · 100% offline",
     last_backup:"last backup",
-    save_progress:"Export progress", load:"Import", open_folder:"Open folder",
+    save_progress:"Export progress", export_short:"Export", load:"Import", open_folder:"Open folder",
     analytics:"📊 analytics", runs:"⟳ runs", search:"Search…",
     show_blocks:"Show blocks", you:"You", assistant:"Assistant", tools:"Tools",
     view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
@@ -380,7 +396,7 @@ const I18N = {
     doc_title:"agentlog · Visor de sesiones",
     sub_default:"visor local · 100% offline",
     last_backup:"último respaldo",
-    save_progress:"Exportar progreso", load:"Importar", open_folder:"Abrir carpeta",
+    save_progress:"Exportar progreso", export_short:"Exportar", load:"Importar", open_folder:"Abrir carpeta",
     analytics:"📊 analytics", runs:"⟳ corridas", search:"Buscar…",
     show_blocks:"Mostrar bloques", you:"Tú", assistant:"Asistente", tools:"Herramientas",
     view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
@@ -442,7 +458,7 @@ function applyStaticI18n(){
   set("lbl-hide-done",t("hide_done")); set("lbl-hide-archived",t("hide_archived")); set("lbl-collapse-turns",t("collapse_turns"));
   set("lbl-group-by",t("group_by")); set("gtSource",t("by_tool")); set("gtProject",t("by_project"));
   set("openBtn",t("open_folder"));
-  // Export/Import are compact icon buttons → their label lives in the tooltip.
+  set("exportBtn","⤓ "+t("export_short")); set("importBtn","⤒ "+t("load"));
   const setTitle=(id,v)=>{ const el=document.getElementById(id); if(el) el.title=v; };
   setTitle("exportBtn",t("save_progress")); setTitle("importBtn",t("load"));
   set("btnAnalytics",t("analytics")); set("btnLog",t("runs"));
