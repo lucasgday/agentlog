@@ -155,8 +155,11 @@ if [ -d "$HOME_CLAUDE/projects" ]; then
   fi
   # Evidence Ledger: deterministic metrics over the FULL corpus (not the
   # incremental delta), written as a sidecar the viewer reads. $0, no network.
+  # AGENTLOG_CLAUDE_RAW_EXTRA (optional, os.pathsep-joined): extra raw-archive
+  # dirs of recovered .jsonl, so token data survives Claude pruning the originals.
   if [ "$DRY" != "1" ]; then
-    python3 "$PY_LEDGER" "$HOME_CLAUDE/projects" "$BASE/markdown-claude" claude-code || true
+    CLAUDE_RAW="$HOME_CLAUDE/projects${AGENTLOG_CLAUDE_RAW_EXTRA:+:$AGENTLOG_CLAUDE_RAW_EXTRA}"
+    python3 "$PY_LEDGER" "$CLAUDE_RAW" "$BASE/markdown-claude" claude-code || true
   fi
 else
   echo "-- Claude Code -- (not found, skipped)"

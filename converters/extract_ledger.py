@@ -38,6 +38,14 @@ except Exception:
 
 CACHE_VERSION = 3
 
+# Recovered-raw archives often hold duplicate project folders with a localized
+# "(del respaldo)" / "(copy)" suffix; strip it so they map to the real project.
+_DUP_SUFFIX = re.compile(r"\s*\((?:del respaldo|copia|copy|backup|restored)\)\s*$", re.I)
+
+
+def clean_project_dir(name):
+    return _DUP_SUFFIX.sub("", name)
+
 TEST_RE = re.compile(
     r"\b(pytest|jest|vitest|go test|cargo test|npm (?:run )?test|"
     r"yarn test|py_compile|bash -n|rspec|phpunit|mvn test|gradle test)\b")
@@ -569,27 +577,33 @@ def collect_file_source(input_path, fmt, old):
     """Claude/Codex: one .jsonl per session, cached by file size:mtime."""
     best = {}  # key -> (size, mtime, path, plabel)
     if fmt == "claude":
-        # os.walk (not glob) so it also covers Cowork, whose sessions are nested
-        # under <workspace>/.claude/projects/<encoded>/<uuid>.jsonl — glob skips
-        # the hidden .claude directory; os.walk descends into it.
-        for root, _dirs, fnames in os.walk(input_path):
-            if os.sep + "subagents" in root + os.sep:
+        # input_path may be several roots (os.pathsep-joined): the live ~/.claude
+        # dir plus any recovered-raw archive folders (Claude prunes old raw; the
+        # archive keeps token data alive). os.walk (not glob) so it also covers
+        # Cowork, nested under a hidden .claude/projects dir. Dedup across all
+        # roots by session uuid (globally unique) — keep the largest copy — so
+        # duplicate "(del respaldo)" folders don't double-count.
+        for root_dir in input_path.split(os.pathsep):
+            if not root_dir:
                 continue
-            for base in fnames:
-                if not base.endswith(".jsonl"):
+            for root, _dirs, fnames in os.walk(root_dir):
+                if os.sep + "subagents" in root + os.sep:
                     continue
-                if base.startswith("agent-") or base == "audit.jsonl":
-                    continue
-                f = os.path.join(root, base)
-                plabel = project_label(os.path.basename(os.path.dirname(f)))
-                uuid = os.path.splitext(base)[0]
-                key = plabel + "\t" + uuid
-                try:
-                    st = os.stat(f); size, mtime = st.st_size, int(st.st_mtime)
-                except OSError:
-                    size, mtime = 0, 0
-                if key not in best or size > best[key][0]:
-                    best[key] = (size, mtime, f, plabel)
+                for base in fnames:
+                    if not base.endswith(".jsonl"):
+                        continue
+                    if base.startswith("agent-") or base == "audit.jsonl":
+                        continue
+                    f = os.path.join(root, base)
+                    uuid = os.path.splitext(base)[0]
+                    plabel = project_label(clean_project_dir(os.path.basename(os.path.dirname(f))))
+                    try:
+                        st = os.stat(f); size, mtime = st.st_size, int(st.st_mtime)
+                    except OSError:
+                        size, mtime = 0, 0
+                    cur = best.get(uuid)
+                    if cur is None or size > cur[0]:
+                        best[uuid] = (size, mtime, f, plabel)
         scanner = scan_claude
     else:  # codex
         for f in glob.glob(os.path.join(input_path, "**", "*.jsonl"), recursive=True):

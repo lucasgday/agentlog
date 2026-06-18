@@ -38,7 +38,10 @@ OpenCode, Cowork). macOS and Linux (paths resolved per-OS; Cowork is macOS-only)
   aggregates). No LLM, no network.
   Incremental: per-session metrics are cached in `_ledger-cache.json` (validated by
   size:mtime) — file sources re-scan only changed sessions; DB sources re-scan only
-  when the DB changed. Called from each source's block in `update-backup.sh`.
+  when the DB changed. Called from each source's block in `update-backup.sh`. The
+  Claude scan reads multiple raw roots (os.pathsep-joined) and dedups by session
+  uuid; set `AGENTLOG_CLAUDE_RAW_EXTRA` to point at recovered-raw archive folders so
+  token data survives the tool pruning the original `.jsonl`.
 - `viewer.html` — standalone, bilingual (EN/ES) viewer. Pure reader. No build step.
 - `*.command` — double-click launchers (install/uninstall the launchd task; run).
 - `docs/` — `index.html` (the GitHub Pages live demo, sample data baked in),
