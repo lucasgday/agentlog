@@ -212,6 +212,8 @@
   .turn.collapsed .chev{transform:rotate(-90deg)}
   .turn-body{padding:0 0 18px 88px;font-size:15px;line-height:1.62}
   .turn.collapsed .turn-body{display:none}
+  /* expanded: the body already shows the text, so don't repeat it in the head */
+  .turn:not(.collapsed) .turn-head .preview{visibility:hidden}
   .turn.done{opacity:.45}
   .turn.done .preview{text-decoration:line-through}
   .turn[data-type="tool"] .turn-body{background:var(--tool-bg);border:1px solid #e6e0d2;border-radius:9px;padding:12px 14px;margin-left:88px;font-size:13.5px}
@@ -228,7 +230,10 @@
   .turn-body a{color:var(--claude)}
   .turn-body strong{font-weight:650}
 
-  .countbar{position:sticky;top:0;z-index:5;background:rgba(250,250,246,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:9px 38px;font-size:12px;color:var(--ink-soft);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .countbar{position:sticky;top:0;z-index:5;background:rgba(250,250,246,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:9px 38px;font-size:12px;color:var(--ink-soft);display:flex;gap:12px;align-items:center}
+  .countbar .cb-title{font-weight:650;color:var(--ink);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .countbar .cb-src{font-size:9px;flex:0 0 auto}
+  .countbar .cb-counts{display:flex;gap:14px;align-items:center;margin-left:auto;flex:0 0 auto}
   .countbar .n{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .loadwrap{padding:50px 40px;text-align:center;color:var(--ink-soft)}
 
@@ -1207,10 +1212,14 @@ function openSession(id){
 
   reader.innerHTML=`
     <div class="countbar">
-      <span><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</span>
-      <span><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</span>
-      <span><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</span>
-      ${s.archivada?`<span class="n" style="color:#9a7b2e">· ${t("archived_badge")}</span>`:''}
+      <span class="cb-title" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</span>
+      <span class="pill src-pill src-${escapeHtml(s.fuente)} cb-src">${escapeHtml(niceSource(s.fuente))}</span>
+      <span class="cb-counts">
+        <span><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</span>
+        <span><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</span>
+        <span><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</span>
+        ${s.archivada?`<span class="n" style="color:#9a7b2e">· ${t("archived_badge")}</span>`:''}
+      </span>
     </div>
     <article class="doc">
       <div class="doc-head">
