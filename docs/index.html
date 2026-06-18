@@ -67,6 +67,8 @@
   .lg-grid .an-stat{min-width:92px}
   .lg-bars{display:flex;flex-direction:column;gap:8px;margin-top:14px}
   .lg-bar-row{display:flex;align-items:center;gap:10px;font-size:12px}
+  .lg-bar-row[data-tip]{cursor:help}
+  .lg-bar-row[data-tip]:hover .lg-bar-name{color:var(--you)}
   .lg-bar-name{flex:0 0 150px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lg-bar-track{flex:1;height:9px;background:var(--paper);border-radius:5px;overflow:hidden}
   .lg-bar-fill{display:block;height:100%;background:var(--you);border-radius:5px}
@@ -364,7 +366,8 @@ const I18N = {
     lg_unique_tools:"unique tools", lg_files:"files modified", lg_tests:"test runs",
     lg_builds:"build runs", lg_errors:"errors", lg_mcp:"MCP calls", lg_tpp:"tools / prompt",
     lg_tokens_title:"Tokens by model", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)",
-    lg_cache_read:"cache read", lg_cache_write:"cache write", lg_range:"activity",
+    lg_cache_read:"cache read", lg_cache_write:"cache write", lg_range:"activity", lg_calls:"calls",
+    tool_desc:{shell:"Runs a shell command", edit:"Edits a file in place", write:"Writes a new file", read:"Reads a file", grep:"Searches file contents (regex)", glob:"Finds files by name pattern", notebook:"Edits a Jupyter notebook", websearch:"Searches the web", webfetch:"Fetches a URL", plan:"Updates the task / plan list", agent:"Spawns a sub-agent", ask:"Asks the user a question", patch:"Applies a code patch", stdin:"Sends input to a running process", toolsearch:"Looks up available tools", mcp:"MCP tool", other:"Tool"},
   },
   es: {
     doc_title:"agentlog · Visor de sesiones",
@@ -402,7 +405,8 @@ const I18N = {
     lg_unique_tools:"tools únicas", lg_files:"archivos modificados", lg_tests:"corridas de test",
     lg_builds:"builds", lg_errors:"errores", lg_mcp:"llamadas MCP", lg_tpp:"tools / prompt",
     lg_tokens_title:"Tokens por modelo", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)",
-    lg_cache_read:"caché leído", lg_cache_write:"caché escrito", lg_range:"actividad",
+    lg_cache_read:"caché leído", lg_cache_write:"caché escrito", lg_range:"actividad", lg_calls:"llamadas",
+    tool_desc:{shell:"Corre un comando de shell", edit:"Edita un archivo", write:"Escribe un archivo nuevo", read:"Lee un archivo", grep:"Busca en el contenido (regex)", glob:"Busca archivos por patrón", notebook:"Edita un notebook Jupyter", websearch:"Busca en la web", webfetch:"Trae una URL", plan:"Actualiza la lista de tareas / plan", agent:"Lanza un sub-agente", ask:"Le pregunta al usuario", patch:"Aplica un patch de código", stdin:"Manda input a un proceso", toolsearch:"Busca tools disponibles", mcp:"Tool MCP", other:"Tool"},
   }
 };
 function t(k){ const d=I18N[state.lang]||I18N.en; return (k in d)?d[k]:(I18N.en[k]!==undefined?I18N.en[k]:k); }
@@ -746,18 +750,19 @@ function renderAnalytics(){
     <button class="am-btn ${AN.metric==='conv'?'active':''}" data-m="conv">${t("conversations_btn")}</button>
     <button class="am-btn ${AN.metric==='turns'?'active':''}" data-m="turns">${t("turns_btn")}</button>`;
   mc.querySelectorAll(".am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.metric=b.dataset.m; renderAnalytics(); }));
-  grid.appendChild(mc);
-  // Evidence Ledger (deterministic, from _ledger.json) goes first, if present
+  // Logical order: deterministic Evidence Ledger overview first (counters →
+  // tokens → tools), then the collection summary, then the metric toggle sitting
+  // right above the charts it actually controls (activity → heatmap → projects).
   if(state.ledger){
     grid.appendChild(cardLedger(state.ledger));
     grid.appendChild(cardTokensByModel(state.ledger));
     grid.appendChild(cardTopTools(state.ledger));
   }
-  // order: summary, heatmap, top, activity
   grid.appendChild(cardSummary(sesiones));
+  grid.appendChild(mc);
+  grid.appendChild(cardStackedArea(sesiones));
   grid.appendChild(cardHeatmap(sesiones));
   grid.appendChild(cardTopProjects(sesiones));
-  grid.appendChild(cardStackedArea(sesiones));
   setupTooltips();
 }
 
@@ -766,7 +771,7 @@ function setupTooltips(){
   const grid=document.getElementById("anGrid");
   if(grid._tipBound) return; grid._tipBound=true;
   grid.addEventListener("mouseover",e=>{
-    const r=e.target.closest("rect[data-tip]"); if(!r) return;
+    const r=e.target.closest("[data-tip]"); if(!r) return;
     tip.innerHTML=r.getAttribute("data-tip"); tip.classList.add("show");
   });
   grid.addEventListener("mousemove",e=>{
@@ -778,7 +783,7 @@ function setupTooltips(){
     tip.style.left=x+"px"; tip.style.top=y+"px";
   });
   grid.addEventListener("mouseout",e=>{
-    if(e.target.closest("rect[data-tip]")) tip.classList.remove("show");
+    if(e.target.closest("[data-tip]")) tip.classList.remove("show");
   });
 }
 
@@ -1024,6 +1029,31 @@ function cardTokensByModel(lg){
   return card;
 }
 
+// Map raw tool names (across tools) to a canonical description key.
+const TOOL_ALIASES={
+  bash:"shell", shell_command:"shell", exec_command:"shell", run_terminal:"shell",
+  run_terminal_cmd:"shell", terminal:"shell",
+  edit:"edit", multiedit:"edit", edit_file:"edit", str_replace_editor:"edit",
+  apply_patch:"patch",
+  write:"write", create_file:"write", createfile:"write", write_file:"write",
+  read:"read", read_file:"read", readfile:"read",
+  grep:"grep", glob:"glob", notebookedit:"notebook",
+  websearch:"websearch", web_search:"websearch", webfetch:"webfetch", web_fetch:"webfetch",
+  todowrite:"plan", update_plan:"plan", todo:"plan",
+  task:"agent", dispatch_agent:"agent",
+  askuserquestion:"ask", write_stdin:"stdin", toolsearch:"toolsearch",
+};
+function toolDesc(name){
+  const d=(I18N[state.lang]||I18N.en).tool_desc||{};
+  if(name.startsWith("mcp__")){
+    const parts=name.slice(5).split("__");
+    const server=(parts[0]||"").replace(/_/g," "), tool=(parts.slice(1).join(" ")||"").replace(/_/g," ");
+    return (d.mcp||"MCP tool")+(server?` · ${server}`:"")+(tool?` · ${tool}`:"");
+  }
+  const key=TOOL_ALIASES[name.toLowerCase()];
+  return (key&&d[key])||d.other||name;
+}
+
 function cardTopTools(lg){
   const card=document.createElement("div"); card.className="an-card";
   card.innerHTML=`<h3>${t("lg_top_tools")}</h3>`;
@@ -1032,7 +1062,8 @@ function cardTopTools(lg){
   const wrap=document.createElement("div"); wrap.className="lg-bars";
   wrap.innerHTML=tools.map(([name,n])=>{
     const nm=name.startsWith("mcp__")?name.replace(/^mcp__/,"").replace(/_/g," "):name;
-    return `<div class="lg-bar-row"><span class="lg-bar-name" title="${escapeHtml(name)}">${escapeHtml(nm)}</span>`+
+    const tip=`<b>${escapeHtml(name)}</b><br>${escapeHtml(toolDesc(name))}<br><span style='opacity:.7'>${fmtNum(n)} ${t("lg_calls")}</span>`;
+    return `<div class="lg-bar-row" data-tip="${tip}"><span class="lg-bar-name">${escapeHtml(nm)}</span>`+
     `<span class="lg-bar-track"><span class="lg-bar-fill" style="width:${Math.max(n/max*100,1.5)}%"></span></span>`+
     `<span class="lg-bar-val">${fmtNum(n)}</span></div>`;
   }).join("");
