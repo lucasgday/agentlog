@@ -36,6 +36,9 @@
   .an-grid{display:flex;flex-direction:column;gap:24px;max-width:920px;margin:0 auto}
   .an-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .an-card h3{margin:0 0 14px;font-size:14px;color:var(--ink);font-weight:700}
+  .an-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .an-card-head h3{margin:0}
+  .tok-toggle{display:flex;gap:4px;flex:0 0 auto}
   .an-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
   .an-src-toggle{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);user-select:none}
   .an-src-toggle .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
@@ -64,8 +67,8 @@
   .an-stat .lbl{font-size:11px;color:var(--ink-soft);margin-top:4px}
   .lg-sub{margin:-6px 0 14px;font-size:12px;color:var(--ink-soft)}
   .lg-range{font-weight:500;font-size:11.5px;color:var(--ink-soft);margin-left:6px}
-  .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:14px}
-  .lg-grid .an-stat{min-width:0}
+  .lg-grid{display:flex;flex-wrap:wrap;gap:14px}
+  .lg-grid .an-stat{flex:1 1 92px;min-width:92px}
   .lg-bars{display:flex;flex-direction:column;gap:8px;margin-top:14px}
   .lg-bar-row{display:flex;align-items:center;gap:10px;font-size:12px}
   .lg-bar-row[data-tip]{cursor:help}
@@ -407,7 +410,7 @@ const I18N = {
     lg_sessions:"sessions", lg_prompts:"prompts", lg_tool_calls:"tool calls",
     lg_unique_tools:"unique tools", lg_files:"files modified", lg_tests:"test runs",
     lg_builds:"build runs", lg_errors:"errors", lg_mcp:"MCP calls", lg_tpp:"tools / prompt",
-    lg_tokens_title:"Tokens by model", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)", lg_total_all:"total tokens", lg_inout:"in + out",
+    lg_tokens_title:"Tokens by model", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)", lg_total_all:"total tokens", lg_inout:"in + out", lg_tok_total:"total",
     lg_cache_read:"cache read", lg_cache_write:"cache write", lg_range:"activity", lg_calls:"calls",
     tool_desc:{shell:"Runs a shell command", edit:"Edits a file in place", write:"Writes a new file", read:"Reads a file", grep:"Searches file contents (regex)", glob:"Finds files by name pattern", notebook:"Edits a Jupyter notebook", websearch:"Searches the web", webfetch:"Fetches a URL", plan:"Updates the task / plan list", agent:"Spawns a sub-agent", ask:"Asks the user a question", patch:"Applies a code patch", stdin:"Sends input to a running process", toolsearch:"Looks up available tools", mcp:"MCP tool", other:"Tool"},
   },
@@ -446,7 +449,7 @@ const I18N = {
     lg_sessions:"sesiones", lg_prompts:"prompts", lg_tool_calls:"llamadas a tools",
     lg_unique_tools:"tools únicas", lg_files:"archivos modificados", lg_tests:"corridas de test",
     lg_builds:"builds", lg_errors:"errores", lg_mcp:"llamadas MCP", lg_tpp:"tools / prompt",
-    lg_tokens_title:"Tokens por modelo", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)", lg_total_all:"tokens totales", lg_inout:"in + out",
+    lg_tokens_title:"Tokens por modelo", lg_top_tools:"Top tools", lg_total_tokens:"tokens (in+out)", lg_total_all:"tokens totales", lg_inout:"in + out", lg_tok_total:"total",
     lg_cache_read:"caché leído", lg_cache_write:"caché escrito", lg_range:"actividad", lg_calls:"llamadas",
     tool_desc:{shell:"Corre un comando de shell", edit:"Edita un archivo", write:"Escribe un archivo nuevo", read:"Lee un archivo", grep:"Busca en el contenido (regex)", glob:"Busca archivos por patrón", notebook:"Edita un notebook Jupyter", websearch:"Busca en la web", webfetch:"Trae una URL", plan:"Actualiza la lista de tareas / plan", agent:"Lanza un sub-agente", ask:"Le pregunta al usuario", patch:"Aplica un patch de código", stdin:"Manda input a un proceso", toolsearch:"Busca tools disponibles", mcp:"Tool MCP", other:"Tool"},
   }
@@ -757,7 +760,7 @@ const SRC_COLORS={"claude-code":"#2f8f82","codex":"#8b7fd4","cowork":"#d49a52","
 function srcColor(f){ return SRC_COLORS[f]||"#888"; }
 
 // ---------- ANALYTICS ----------
-const AN={ gran:"month", srcOn:{}, metric:"conv" };  // metric: 'conv' o 'turns'
+const AN={ gran:"month", srcOn:{}, metric:"conv", tokMode:"total" };  // metric: 'conv'|'turns'; tokMode: 'total'|'base'
 
 // weight of a session per the active metric: 1 conversation, or its turn count
 function sesPeso(s){ return AN.metric==="turns" ? (s.turns?s.turns.length:0) : 1; }
@@ -1070,7 +1073,12 @@ function cardTokensByModel(lg){
   const tk=lg.tokens||{};
   const base=(tk.input||0)+(tk.output||0);
   const totalAll=base+(tk.cache_read||0)+(tk.cache_creation||0);
-  card.innerHTML=`<h3>${t("lg_tokens_title")}</h3>`;
+  const byTotal = AN.tokMode!=="base";  // bars by total (base+cache) or in+out
+  card.innerHTML=`<div class="an-card-head"><h3>${t("lg_tokens_title")}</h3>`+
+    `<div class="tok-toggle">`+
+    `<button class="am-btn ${byTotal?'active':''}" data-tok="total">${t("lg_tok_total")}</button>`+
+    `<button class="am-btn ${byTotal?'':'active'}" data-tok="base">${t("lg_inout")}</button>`+
+    `</div></div>`;
   const head=document.createElement("div"); head.className="an-summary";
   head.innerHTML=[
     [fmtNum(totalAll),t("lg_total_all")],
@@ -1078,20 +1086,21 @@ function cardTokensByModel(lg){
     [fmtNum(base),t("lg_inout")],
   ].map(([n,l])=>`<div class="an-stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join("");
   card.appendChild(head);
-  // Bars rank by TOTAL tokens (base + cache): base alone wildly under-counts
-  // heavily-cached models (e.g. Claude prompt caching), hiding real usage.
+  // Bars rank by the active metric. Default is TOTAL (base + cache): base alone
+  // wildly under-counts heavily-cached models (e.g. Claude prompt caching).
   const models=Object.entries(lg.tokens_by_model||{})
-    .map(([m,v])=>{ const b=(v.input||0)+(v.output||0); return [m, b+(v.cache_read||0)+(v.cache_creation||0), b, v.cache_read||0]; })
+    .map(([m,v])=>{ const b=(v.input||0)+(v.output||0); const tot=b+(v.cache_read||0)+(v.cache_creation||0); return [m, byTotal?tot:b, b, v.cache_read||0, tot]; })
     .filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
   const max=models.length?models[0][1]:1;
   const wrap=document.createElement("div"); wrap.className="lg-bars";
-  wrap.innerHTML=models.map(([m,total,b,cr])=>{
-    const tip=`<b>${escapeHtml(m)}</b><br>${fmtNum(total)} ${t("lg_total_all")}<br><span style='opacity:.7'>${fmtNum(b)} ${t("lg_inout")} · ${fmtNum(cr)} ${t("lg_cache_read")}</span>`;
+  wrap.innerHTML=models.map(([m,val,b,cr,tot])=>{
+    const tip=`<b>${escapeHtml(m)}</b><br>${fmtNum(tot)} ${t("lg_total_all")}<br><span style='opacity:.7'>${fmtNum(b)} ${t("lg_inout")} · ${fmtNum(cr)} ${t("lg_cache_read")}</span>`;
     return `<div class="lg-bar-row" data-tip="${tip}"><span class="lg-bar-name">${escapeHtml(m)}</span>`+
-    `<span class="lg-bar-track"><span class="lg-bar-fill" style="width:${Math.max(total/max*100,1.5)}%"></span></span>`+
-    `<span class="lg-bar-val">${fmtNum(total)}</span></div>`;
+    `<span class="lg-bar-track"><span class="lg-bar-fill" style="width:${Math.max(val/max*100,1.5)}%"></span></span>`+
+    `<span class="lg-bar-val">${fmtNum(val)}</span></div>`;
   }).join("");
   card.appendChild(wrap);
+  card.querySelectorAll(".tok-toggle .am-btn").forEach(b=>b.addEventListener("click",()=>{ AN.tokMode=b.dataset.tok; renderAnalytics(); }));
   return card;
 }
 
