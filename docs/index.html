@@ -74,22 +74,19 @@
   .lg-bar-track{flex:1;height:9px;background:var(--paper);border-radius:5px;overflow:hidden}
   .lg-bar-fill{display:block;height:100%;background:var(--you);border-radius:5px}
   .lg-bar-val{flex:0 0 46px;text-align:right;color:var(--ink-soft);font-variant-numeric:tabular-nums}
-  .log-panel{position:fixed;top:54px;right:14px;width:340px;max-height:70vh;overflow-y:auto;background:var(--spine-2);border:1px solid var(--line-strong);border-radius:12px;padding:14px 16px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
-  .log-panel.open{display:block}
-  .log-panel h3{margin:0 0 10px;font-size:13px;color:#cfe0dc;font-weight:700}
-  .log-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #0a201e;font-size:12px}
+  .log-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
   .log-row:last-child{border-bottom:none}
-  .log-row .lr-fecha{color:#9fc0ba}
-  .log-row .lr-total{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
-  .log-row .lr-detalle{color:#6b9a93;font-size:10.5px}
-  .log-row .lr-delta{font-size:10.5px;font-weight:700;margin-left:6px}
-  .log-row .lr-delta.up{color:#5fb8ad}
-  .log-row .lr-delta.down{color:#d87093}
+  .log-row .lr-fecha{color:var(--ink);font-weight:600}
+  .log-row .lr-total{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .log-row .lr-detalle{color:var(--ink-soft);font-size:11.5px}
+  .log-row .lr-delta{font-size:11px;font-weight:700;margin-left:6px}
+  .log-row .lr-delta.up{color:#1a8f7f}
+  .log-row .lr-delta.down{color:#c44d6e}
   .lr-deltas{margin-top:3px;display:flex;flex-wrap:wrap;gap:4px}
-  .lr-deltas .ds{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px}
-  .lr-deltas .ds.up{background:#163b36;color:#5fb8ad}
-  .lr-deltas .ds.down{background:#3a1f2a;color:#d87093}
-  .log-empty{color:#7FA39D;font-size:12px;padding:6px 0}
+  .lr-deltas .ds{font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px}
+  .lr-deltas .ds.up{background:#e3f1ee;color:#1a8f7f}
+  .lr-deltas .ds.down{background:#f7e4ea;color:#c44d6e}
+  .log-empty{color:var(--ink-soft);font-size:13px;padding:6px 0}
   .search input{width:240px;max-width:40vw;padding:7px 11px 7px 30px;border:1px solid #2c534f;background:#0c2422;color:#EAF0EE;border-radius:8px;font:inherit;font-size:13px}
   .search input::placeholder{color:#6b8e88}
   .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:.6}
@@ -250,6 +247,9 @@
   .countbar .cb-src{font-size:9px;flex:0 0 auto}
   .countbar .cb-counts{display:flex;gap:14px;align-items:center;margin-left:auto;flex:0 0 auto}
   .countbar .n{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .countbar .cb-count{font:inherit;font-size:12px;color:var(--ink-soft);background:transparent;border:none;cursor:pointer;padding:2px 5px;border-radius:6px;display:inline-flex;gap:5px;align-items:center;line-height:1}
+  .countbar .cb-count:hover{background:var(--tool-bg);color:var(--ink)}
+  .countbar .cb-count.off{opacity:.4;text-decoration:line-through}
   .loadwrap{padding:50px 40px;text-align:center;color:var(--ink-soft)}
 
   .sidebar::-webkit-scrollbar,.reader::-webkit-scrollbar{width:10px}
@@ -283,11 +283,6 @@
 
   <div class="an-tooltip" id="anTooltip"></div>
 
-  <div class="log-panel" id="logPanel">
-    <h3 id="lbl-runs-title">Latest backup runs</h3>
-    <div id="logBody"><div class="log-empty"></div></div>
-  </div>
-
   <div class="shell">
     <aside class="sidebar" id="sidebar">
       <div class="side-nav">
@@ -295,9 +290,11 @@
         <button class="side-link" id="btnLog">⟳ runs</button>
         <button class="side-link side-link-lang" id="btnLang" title="Language">🌐 ES</button>
       </div>
-      <div class="side-search search">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="search" type="search" placeholder="Search…" autocomplete="off">
+      <div class="side-search">
+        <div class="search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfe0dc" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search" type="search" placeholder="Search…" autocomplete="off">
+        </div>
       </div>
       <div class="side-scroll">
       <div class="filters" id="filters">
@@ -344,6 +341,14 @@
       </div>
       <div class="an-grid" id="anGrid"></div>
     </section>
+
+    <section class="analytics" id="runsView" style="display:none">
+      <div class="an-head">
+        <h2 id="runs-title">Latest backup runs</h2>
+        <button class="btn-log" id="btnCloseRuns">← back to the list</button>
+      </div>
+      <div class="an-grid"><div class="an-card"><div id="logBody"><div class="log-empty"></div></div></div></div>
+    </section>
   </div>
 
 <script>
@@ -367,7 +372,7 @@ const I18N = {
     last_backup:"last backup",
     save_progress:"Export progress", export_short:"Export", load:"Import", open_folder:"Open folder",
     analytics:"📊 Analytics", runs:"⟳ Runs", search:"Search…",
-    filters:"Filters", show_blocks:"Show blocks", you:"You", assistant:"Assistant", tools:"Tools",
+    filters:"Filters", show_blocks:"Show blocks", you:"You", assistant:"Agent", tools:"Tools",
     view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
     collapse_turns:"Collapse all turns", group_by:"Group by:", by_tool:"Tool", by_project:"Project",
     runs_title:"Latest backup runs", runs_empty:"No record yet. The backup writes here every time it runs.",
@@ -406,7 +411,7 @@ const I18N = {
     last_backup:"último respaldo",
     save_progress:"Exportar progreso", export_short:"Exportar", load:"Importar", open_folder:"Abrir carpeta",
     analytics:"📊 Analytics", runs:"⟳ Corridas", search:"Buscar…",
-    filters:"Filtros", show_blocks:"Mostrar bloques", you:"Tú", assistant:"Asistente", tools:"Herramientas",
+    filters:"Filtros", show_blocks:"Mostrar bloques", you:"Tú", assistant:"Agente", tools:"Herramientas",
     view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
     collapse_turns:"Colapsar todos los turnos", group_by:"Agrupar por:", by_tool:"Herramienta", by_project:"Proyecto",
     runs_title:"Últimas corridas del respaldo", runs_empty:"Sin registro todavía. El respaldo escribe acá cada vez que corre.",
@@ -471,7 +476,7 @@ function applyStaticI18n(){
   setTitle("exportBtn",t("save_progress")); setTitle("importBtn",t("load"));
   set("btnAnalytics",t("analytics")); set("btnLog",t("runs"));
   const s=document.getElementById("search"); if(s) s.placeholder=t("search");
-  set("lbl-runs-title",t("runs_title"));
+  set("runs-title",t("runs_title")); set("btnCloseRuns",t("back_to_list"));
   set("an-title",t("an_title")); set("btnCloseAnalytics",t("back_to_list"));
   set("empty-title",t("empty_title")); set("empty-p",t("empty_p"));
   set("empty-how",`<b>${t("empty_how_t")}</b><br>${t("empty_how")}`,true);
@@ -752,17 +757,22 @@ const AN={ gran:"month", srcOn:{}, metric:"conv" };  // metric: 'conv' o 'turns'
 function sesPeso(s){ return AN.metric==="turns" ? (s.turns?s.turns.length:0) : 1; }
 function metricLabel(){ return AN.metric==="turns" ? t("metric_turns") : t("metric_conv"); }
 
+// Only one of reader / analytics / runs is visible at a time (all share the
+// main column of the shell).
+function showView(which){
+  document.getElementById("reader").style.display = which==="reader" ? "" : "none";
+  document.getElementById("analytics").style.display = which==="analytics" ? "block" : "none";
+  const rv=document.getElementById("runsView"); if(rv) rv.style.display = which==="runs" ? "block" : "none";
+}
 function showAnalytics(){
-  document.getElementById("reader").style.display="none";
-  document.getElementById("analytics").style.display="block";
+  showView("analytics");
   // initialize active sources (all on the first time)
   for(const f of state.sources.keys()) if(!(f in AN.srcOn)) AN.srcOn[f]=true;
   renderAnalytics();
 }
-function hideAnalytics(){
-  document.getElementById("analytics").style.display="none";
-  document.getElementById("reader").style.display="";
-}
+function hideAnalytics(){ showView("reader"); }
+function showRuns(){ showView("runs"); renderRunLog(); }
+function hideRuns(){ showView("reader"); }
 
 function periodKey(iso, gran){
   const d=new Date(iso); if(isNaN(d)) return null;
@@ -1212,6 +1222,7 @@ function renderSidebar(){
 function openSession(id){
   state.activeId=id;
   const s=state.sessions.find(x=>x.id===id); if(!s) return;
+  showView("reader");
   const reader=document.getElementById("reader"); const pr=prog(id);
   const counts={user:0,assistant:0,tool:0}; s.turns.forEach(t=>counts[t.type]=(counts[t.type]||0)+1);
 
@@ -1239,9 +1250,9 @@ function openSession(id){
       <span class="cb-title" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</span>
       <span class="pill src-pill src-${escapeHtml(s.fuente)} cb-src">${escapeHtml(niceSource(s.fuente))}</span>
       <span class="cb-counts">
-        <span><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</span>
-        <span><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</span>
-        <span><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</span>
+        <button class="cb-count${state.types.user?'':' off'}" data-type="user" title="${t("show_blocks")}"><span class="n">${counts.user}</span> ${t("you").toLowerCase()}</button>
+        <button class="cb-count${state.types.assistant?'':' off'}" data-type="assistant" title="${t("show_blocks")}"><span class="n">${counts.assistant}</span> ${escapeHtml(niceSource(s.fuente).toLowerCase())}</button>
+        <button class="cb-count${state.types.tool?'':' off'}" data-type="tool" title="${t("show_blocks")}"><span class="n">${counts.tool}</span> ${t("tools").toLowerCase()}</button>
         ${s.archivada?`<span class="n" style="color:#9a7b2e">· ${t("archived_badge")}</span>`:''}
       </span>
     </div>
@@ -1312,7 +1323,16 @@ function fallbackCopy(txt,cb){
 /* ---------- events ---------- */
 document.getElementById("openBtn").addEventListener("click",()=>document.getElementById("folder").click());
 document.getElementById("folder").addEventListener("change",e=>handleFiles(e.target.files));
-document.getElementById("types").addEventListener("click",e=>{ const chip=e.target.closest(".chip"); if(!chip)return; const t=chip.dataset.type; state.types[t]=!state.types[t]; chip.classList.toggle("on",state.types[t]); if(state.activeId)openSession(state.activeId); });
+function toggleType(type){
+  if(!(type in state.types)) return;
+  state.types[type]=!state.types[type];
+  const chip=document.querySelector('.types .chip[data-type="'+type+'"]');
+  if(chip) chip.classList.toggle("on",state.types[type]);
+  if(state.activeId) openSession(state.activeId);
+}
+document.getElementById("types").addEventListener("click",e=>{ const chip=e.target.closest(".chip"); if(chip) toggleType(chip.dataset.type); });
+// the sticky count bar's counts double as You / Agent / Tool show-toggles
+document.getElementById("reader").addEventListener("click",e=>{ const b=e.target.closest(".cb-count"); if(b) toggleType(b.dataset.type); });
 let st=null;
 document.getElementById("search").addEventListener("input",e=>{ clearTimeout(st); st=setTimeout(()=>{ state.query=e.target.value.trim().toLowerCase(); renderSidebar(); },140); });
 document.getElementById("hideDone").addEventListener("change",e=>{ state.hideDone=e.target.checked; renderSidebar(); });
@@ -1335,13 +1355,8 @@ document.getElementById("gtProject").addEventListener("click",()=>setGroupMode("
 document.getElementById("btnLang").addEventListener("click",()=>setLang(state.lang==="en"?"es":"en"));
 document.getElementById("btnAnalytics").addEventListener("click",showAnalytics);
 document.getElementById("btnCloseAnalytics").addEventListener("click",hideAnalytics);
-document.getElementById("btnLog").addEventListener("click",()=>{
-  document.getElementById("logPanel").classList.toggle("open");
-});
-document.addEventListener("click",e=>{
-  const p=document.getElementById("logPanel"), b=document.getElementById("btnLog");
-  if(p.classList.contains("open") && !p.contains(e.target) && e.target!==b) p.classList.remove("open");
-});
+document.getElementById("btnLog").addEventListener("click",showRuns);
+document.getElementById("btnCloseRuns").addEventListener("click",hideRuns);
 document.getElementById("hideArchived").addEventListener("change",e=>{ state.hideArchived=e.target.checked; renderSidebar(); });
 document.getElementById("collapseAll").addEventListener("change",e=>{ state.collapseAll=e.target.checked; if(state.activeId)openSession(state.activeId); });
 document.getElementById("menuToggle").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
@@ -1436,7 +1451,7 @@ setLang(detectLang());
     } else if(view === "analytics"){
       showAnalytics();
     } else if(view === "corridas"){
-      document.getElementById("logPanel").classList.add("open");
+      showRuns();
     }
     window.scrollTo(0,0);
     // "demo" badge only on a bare visit (no query params) — keeps screenshots clean
