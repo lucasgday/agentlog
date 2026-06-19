@@ -34,6 +34,25 @@
   .an-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
   .an-head h2{margin:0;font-size:20px;color:var(--ink)}
   .an-grid{display:flex;flex-direction:column;gap:24px;max-width:920px;margin:0 auto}
+  .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:16px;max-width:960px;margin:0 auto}
+  .proj-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 17px;cursor:pointer;transition:.12s;display:flex;flex-direction:column;gap:10px;min-height:104px}
+  .proj-card:hover{border-color:var(--line-strong);box-shadow:0 4px 14px rgba(0,0,0,.06)}
+  .pj-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .pj-name{font-weight:700;font-size:15px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .pj-status{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:999px;flex:0 0 auto}
+  .pj-status.pj-active{background:#e3f1ee;color:#1a8f7f}
+  .pj-status.pj-inactive{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line)}
+  .pj-status.pj-gone{background:#f7e4ea;color:#c44d6e}
+  .pj-meta{display:flex;flex-wrap:wrap;gap:6px}
+  .pj-pill{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--paper);color:var(--ink-soft);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .pj-pill.pj-git{font-family:var(--mono);font-size:10.5px}
+  .pj-pill.pj-stack{background:#eef2f0;color:var(--ink);border-color:#dde6e2;font-weight:600}
+  .pj-pill.pj-deployed{background:#eaf3ff;color:#2c6bbd;border-color:#d4e6fb;font-weight:600}
+  .pj-pill.pj-muted{opacity:.55}
+  .pj-foot{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--ink-soft);margin-top:auto;flex-wrap:wrap}
+  .pj-foot .pj-count b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .pj-foot .pj-src{display:flex;gap:4px;flex-wrap:wrap}
+  .pj-foot .pj-date{margin-left:auto}
   .an-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .an-card h3{margin:0 0 14px;font-size:14px;color:var(--ink);font-weight:700}
   .an-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
@@ -299,6 +318,7 @@
   <div class="shell">
     <aside class="sidebar" id="sidebar">
       <div class="side-nav">
+        <button class="side-link" id="btnProjects">📁 projects</button>
         <button class="side-link" id="btnAnalytics">📊 analytics</button>
         <button class="side-link" id="btnLog">⟳ runs</button>
         <button class="side-link side-link-lang" id="btnLang" title="Language">🌐 ES</button>
@@ -362,6 +382,14 @@
       </div>
       <div class="an-grid"><div class="an-card"><div id="logBody"><div class="log-empty"></div></div></div></div>
     </section>
+
+    <section class="analytics" id="projectsView" style="display:none">
+      <div class="an-head">
+        <h2 id="projects-title">Projects</h2>
+        <button class="btn-log" id="btnCloseProjects">← back to the list</button>
+      </div>
+      <div class="proj-grid" id="projGrid"></div>
+    </section>
   </div>
 
 <script>
@@ -373,7 +401,7 @@ const state = {
   types: { user:true, assistant:true, tool:true },
   query: "", hideDone:true, hideArchived:true, collapseAll:false,
   backupInfo:{}, collapsedSources:{}, groupMode:"project",
-  lang:"en", ledger:null,
+  lang:"en", ledger:null, projectMeta:{},
   progress: {}  // { [sessionId]: { done:bool, turns:{ [i]:bool } } }
 };
 
@@ -384,7 +412,10 @@ const I18N = {
     sub_default:"local viewer · 100% offline",
     last_backup:"last backup",
     save_progress:"Export progress", export_short:"Export", load:"Import", open_folder:"Open folder",
-    analytics:"📊 Analytics", runs:"⟳ Runs", search:"Search…",
+    export_tip:"Save your review progress (which conversations & turns you've marked, per browser) to a file",
+    import_tip:"Load review progress from a file exported earlier",
+    analytics:"📊 Analytics", runs:"⟳ Runs", projects_nav:"📁 Projects", search:"Search…",
+    projects_title:"Projects", pj_active:"active", pj_inactive:"inactive", pj_gone:"folder gone", pj_deployed:"deployed", pj_nogit:"no git", pj_dirty:"uncommitted changes", pj_sessions:"conversations", pj_last:"last", pj_empty:"No project metadata yet — run a backup to generate it.",
     filters:"Filters", show_blocks:"Show blocks", you:"You", assistant:"Agent", tools:"Tools",
     view:"View", hide_done:"Hide marked conversations", hide_archived:"Hide archived",
     collapse_turns:"Collapse all turns", group_by:"Group by:", by_tool:"Tool", by_project:"Project",
@@ -424,7 +455,10 @@ const I18N = {
     sub_default:"visor local · 100% offline",
     last_backup:"último respaldo",
     save_progress:"Exportar progreso", export_short:"Exportar", load:"Importar", open_folder:"Abrir carpeta",
-    analytics:"📊 Analytics", runs:"⟳ Corridas", search:"Buscar…",
+    export_tip:"Guardá tu progreso de revisión (qué conversaciones y turnos marcaste, por navegador) a un archivo",
+    import_tip:"Cargá el progreso de revisión desde un archivo exportado antes",
+    analytics:"📊 Analytics", runs:"⟳ Corridas", projects_nav:"📁 Proyectos", search:"Buscar…",
+    projects_title:"Proyectos", pj_active:"activo", pj_inactive:"inactivo", pj_gone:"carpeta ausente", pj_deployed:"deployado", pj_nogit:"sin git", pj_dirty:"cambios sin commitear", pj_sessions:"conversaciones", pj_last:"último", pj_empty:"Sin metadata de proyectos todavía — corré un backup para generarla.",
     filters:"Filtros", show_blocks:"Mostrar bloques", you:"Tú", assistant:"Agente", tools:"Herramientas",
     view:"Vista", hide_done:"Ocultar conversaciones marcadas", hide_archived:"Ocultar archivadas",
     collapse_turns:"Colapsar todos los turnos", group_by:"Agrupar por:", by_tool:"Herramienta", by_project:"Proyecto",
@@ -488,8 +522,9 @@ function applyStaticI18n(){
   set("openBtn",t("open_folder"));
   set("exportBtn","⤓ "+t("export_short")); set("importBtn","⤒ "+t("load"));
   const setTitle=(id,v)=>{ const el=document.getElementById(id); if(el) el.title=v; };
-  setTitle("exportBtn",t("save_progress")); setTitle("importBtn",t("load"));
-  set("btnAnalytics",t("analytics")); set("btnLog",t("runs"));
+  setTitle("exportBtn",t("export_tip")); setTitle("importBtn",t("import_tip"));
+  set("btnAnalytics",t("analytics")); set("btnLog",t("runs")); set("btnProjects",t("projects_nav"));
+  set("projects-title",t("projects_title")); set("btnCloseProjects",t("back_to_list"));
   const s=document.getElementById("search"); if(s) s.placeholder=t("search");
   set("runs-title",t("runs_title")); set("btnCloseRuns",t("back_to_list"));
   set("an-title",t("an_title")); set("btnCloseAnalytics",t("back_to_list"));
@@ -696,6 +731,11 @@ async function handleFiles(fileList){
     }catch(e){}
   }
   if(Object.keys(ledgerSources).length) state.ledger=aggregateLedger({sources:ledgerSources});
+  // collect the project-metadata sidecar (git/stack/status per project)
+  state.projectMeta={};
+  for(const f of Array.from(fileList).filter(f=>/_projects\.json$/i.test(f.name))){
+    try{ const doc=JSON.parse(await f.text()); if(doc&&doc.projects) Object.assign(state.projectMeta, doc.projects); }catch(e){}
+  }
   if(!files.length){ document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("no_md")}</div>`; return; }
   document.getElementById("reader").innerHTML=`<div class="loadwrap">${t("reading")} ${files.length} ${t("sessions_word")}…</div>`;
   state.sessions=[]; state.projects=new Map(); state.sources=new Map();
@@ -778,6 +818,55 @@ function showView(which){
   document.getElementById("reader").style.display = which==="reader" ? "" : "none";
   document.getElementById("analytics").style.display = which==="analytics" ? "block" : "none";
   const rv=document.getElementById("runsView"); if(rv) rv.style.display = which==="runs" ? "block" : "none";
+  const pv=document.getElementById("projectsView"); if(pv) pv.style.display = which==="projects" ? "block" : "none";
+}
+function showProjects(){ showView("projects"); renderProjects(); }
+function hideProjects(){ showView("reader"); }
+
+// Project dashboard: per-project conversation counts (from the markdown) joined
+// with _projects.json (git / stack / status), one card each, newest first.
+function renderProjects(){
+  const grid=document.getElementById("projGrid"); grid.innerHTML="";
+  const byProj=new Map();
+  for(const s of (state.sessions||[])){
+    const name=s.project||"(no project)";
+    let p=byProj.get(name);
+    if(!p){ p={name,count:0,last:"",sources:new Set()}; byProj.set(name,p); }
+    p.count++; p.sources.add(s.fuente);
+    if((s.fecha||"")>p.last) p.last=s.fecha||"";
+  }
+  if(!byProj.size){ grid.innerHTML=`<div class="an-card">${t("no_data")}</div>`; return; }
+  const rows=[...byProj.values()].map(p=>{
+    const meta=state.projectMeta[p.name]||null;
+    return Object.assign(p,{meta, lastSort:(meta&&meta.last_activity)||p.last||""});
+  }).sort((a,b)=>(b.lastSort||"").localeCompare(a.lastSort||""));
+  grid.innerHTML=rows.map(cardProject).join("");
+  grid.querySelectorAll(".proj-card").forEach(c=>c.addEventListener("click",()=>openProjectInList(c.dataset.proj)));
+}
+function cardProject(p){
+  const m=p.meta||{};
+  const st=m.status||"";
+  const statusPill = st ? `<span class="pj-status pj-${st}">${t(st==="active"?"pj_active":st==="gone"?"pj_gone":"pj_inactive")}</span>` : "";
+  const g=m.git;
+  let gitPill="";
+  if(g&&g.branch) gitPill=`<span class="pj-pill pj-git">⎇ ${escapeHtml(g.branch)}${g.last_commit_date?` · ${escapeHtml(g.last_commit_date)}`:""}${g.dirty?` · ${t("pj_dirty")}`:""}</span>`;
+  else if(m.exists!==false && m.path) gitPill=`<span class="pj-pill pj-muted">${t("pj_nogit")}</span>`;
+  const stackPills=(m.stack||[]).map(s=>`<span class="pj-pill pj-stack">${escapeHtml(s)}</span>`).join("");
+  const deployed=m.deployed?`<span class="pj-pill pj-deployed">${t("pj_deployed")}</span>`:"";
+  const srcMini=[...p.sources].map(f=>`<span class="src-mini src-${escapeHtml(f)}">${escapeHtml(niceSource(f))}</span>`).join(" ");
+  const lastRaw=(m.last_activity||p.last||"");
+  const lastDate=lastRaw?escapeHtml(formatDate(lastRaw.slice(0,10),false)):"";
+  return `<div class="proj-card" data-proj="${escapeHtml(p.name)}">
+    <div class="pj-head"><span class="pj-name">${escapeHtml(p.name)}</span>${statusPill}</div>
+    <div class="pj-meta">${gitPill}${stackPills}${deployed}</div>
+    <div class="pj-foot"><span class="pj-count"><b>${p.count}</b> ${t("pj_sessions")}</span><span class="pj-src">${srcMini}</span><span class="pj-date">${lastDate}</span></div>
+  </div>`;
+}
+function openProjectInList(name){
+  const ss=(state.sessions||[]).filter(s=>(s.project||"(no project)")===name).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  if(state.groupMode==="project") state.collapsedSources["proj:"+name]=false;
+  if(ss.length) openSession(ss[0].id);
+  else { showView("reader"); renderSidebar(); }
 }
 function showAnalytics(){
   showView("analytics");
@@ -1388,6 +1477,8 @@ document.getElementById("btnAnalytics").addEventListener("click",showAnalytics);
 document.getElementById("btnCloseAnalytics").addEventListener("click",hideAnalytics);
 document.getElementById("btnLog").addEventListener("click",showRuns);
 document.getElementById("btnCloseRuns").addEventListener("click",hideRuns);
+document.getElementById("btnProjects").addEventListener("click",showProjects);
+document.getElementById("btnCloseProjects").addEventListener("click",hideProjects);
 document.getElementById("hideArchived").addEventListener("change",e=>{ state.hideArchived=e.target.checked; renderSidebar(); });
 document.getElementById("collapseAll").addEventListener("change",e=>{ state.collapseAll=e.target.checked; if(state.activeId)openSession(state.activeId); });
 document.getElementById("menuToggle").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
