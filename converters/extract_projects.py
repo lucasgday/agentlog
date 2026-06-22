@@ -14,6 +14,7 @@ Usage: extract_projects.py <out_dir> [claude=<dir>] [cowork=<dir>] [codex=<dir>]
   on the first lines). Cursor is skipped — its store carries no project path.
 """
 import json, os, re, sys, glob, subprocess, datetime
+from urllib.parse import urlsplit, urlunsplit
 
 # Manifest file -> stack label. First match(es) win; a project can have several.
 MANIFESTS = [
@@ -41,6 +42,32 @@ STACK_SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "venv", "__py
 # Hints that a project is deployed somewhere (local read, no network).
 DEPLOY_HINTS = ["vercel.json", "netlify.toml", "fly.toml", ".github/workflows",
                 "Procfile", "render.yaml", "wrangler.toml"]
+DEPLOY_TEXT_HINTS = [
+    "README.md", "README.mdx", "README.es.md", "BACKLOG.md", ".env.example",
+    os.path.join("docs", "deployment.md"),
+    os.path.join("docs", "agent-handoff.md"),
+    os.path.join("docs", "product-progress.md"),
+]
+DEPLOY_PLATFORM_HOSTS = (
+    "vercel.app", "netlify.app", "fly.dev", "pages.dev", "workers.dev",
+    "onrender.com", "render.com",
+)
+NON_DEPLOY_HOSTS = {
+    "github.com", "gitlab.com", "bitbucket.org", "localhost", "127.0.0.1",
+    "0.0.0.0", "schema.org", "json-schema.org", "openapi.vercel.sh",
+    "vercel.com", "netlify.com", "render.com", "fly.io", "cloudflare.com",
+    "supabase.com", "resend.com", "tally.so", "discord.com", "x.com",
+    "twitter.com", "linkedin.com", "mail.google.com", "google.com",
+    "docs.github.com", "developer.mozilla.org", "nextjs.org",
+}
+NON_DEPLOY_TLDS = {
+    "db", "json", "lock", "md", "sqlite", "toml", "ts", "tsx", "vscdb",
+    "yaml", "yml",
+}
+PROJECT_TOKEN_STOPWORDS = {
+    "app", "web", "site", "api", "server", "admin", "client", "frontend",
+    "backend", "service", "repo", "project", "codex",
+}
 ACTIVE_DAYS = 30
 
 
@@ -161,7 +188,7 @@ def git_info(path):
 
 
 def normalize_http_url(value):
-    value = (value or "").strip().strip('"').strip("'")
+    value = (value or "").strip().strip("`").strip('"').strip("'").rstrip("`.,;:)]")
     if not value:
         return None
     if value.startswith(("http://", "https://")):
@@ -169,6 +196,98 @@ def normalize_http_url(value):
     if re.match(r"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(/.*)?$", value):
         return "https://" + value.strip("/")
     return None
+
+
+def url_host(url):
+    try:
+        return urlsplit(url).netloc.lower().split("@")[-1].split(":")[0]
+    except Exception:
+        return ""
+
+
+def url_origin(url):
+    try:
+        parts = urlsplit(url)
+        if not parts.scheme or not parts.netloc:
+            return url
+        return urlunsplit((parts.scheme, parts.netloc.lower(), "", "", ""))
+    except Exception:
+        return url
+
+
+def is_deploy_platform_host(host):
+    return any(host == h or host.endswith("." + h) for h in DEPLOY_PLATFORM_HOSTS)
+
+
+def is_non_deploy_host(host):
+    if not host:
+        return True
+    if host.rsplit(".", 1)[-1] in NON_DEPLOY_TLDS:
+        return True
+    if host in NON_DEPLOY_HOSTS:
+        return True
+    return any(host.endswith("." + h) for h in NON_DEPLOY_HOSTS)
+
+
+def project_tokens(path):
+    name = os.path.basename(os.path.abspath(path)).lower()
+    tokens = [t for t in re.split(r"[^a-z0-9]+", name) if len(t) >= 3]
+    return [t for t in tokens if t not in PROJECT_TOKEN_STOPWORDS]
+
+
+def host_matches_project(host, path):
+    compact = re.sub(r"[^a-z0-9]+", "", host.lower())
+    return any(t in compact for t in project_tokens(path))
+
+
+def deploy_url_score(url, path, source_priority=0, require_project_match=False):
+    host = url_host(url)
+    if is_non_deploy_host(host):
+        return None
+    is_platform = is_deploy_platform_host(host)
+    matches_project = host_matches_project(host, path)
+    if require_project_match and not matches_project:
+        return None
+    score = source_priority
+    score += 10 if is_platform else 100
+    if matches_project:
+        score += 30
+    try:
+        if urlsplit(url).path in ("", "/"):
+            score += 5
+    except Exception:
+        pass
+    return score
+
+
+def add_deploy_candidate(candidates, path, value, source_priority=0,
+                         require_project_match=False, origin_only=False):
+    url = normalize_http_url(value)
+    if not url:
+        return
+    if origin_only:
+        url = url_origin(url)
+    score = deploy_url_score(url, path, source_priority, require_project_match)
+    if score is None:
+        return
+    candidates.append((score, len(candidates), url))
+
+
+def deploy_urls_from_text(path):
+    pattern = re.compile(
+        r'https?://[^\s"\'<>)\]]+'
+        r'|(?<!@)\b[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s"\'<>)\]]*)?'
+    )
+    for rel in DEPLOY_TEXT_HINTS:
+        fpath = os.path.join(path, rel)
+        if not os.path.exists(fpath) or os.path.getsize(fpath) > 300_000:
+            continue
+        try:
+            text = open(fpath, errors="ignore").read()
+        except Exception:
+            continue
+        for m in pattern.finditer(text):
+            yield m.group(0).rstrip(".,;:")
 
 
 def normalize_repo_url(remote):
@@ -217,12 +336,12 @@ def is_deployed(path):
 
 
 def detect_deploy_url(path):
+    candidates = []
     pkg = os.path.join(path, "package.json")
     if os.path.exists(pkg):
         try:
-            url = normalize_http_url(json.load(open(pkg)).get("homepage"))
-            if url:
-                return url
+            add_deploy_candidate(candidates, path, json.load(open(pkg)).get("homepage"),
+                                 source_priority=80)
         except Exception:
             pass
     vercel = os.path.join(path, "vercel.json")
@@ -235,20 +354,23 @@ def detect_deploy_url(path):
                     vals = [vals]
                 if isinstance(vals, list):
                     for val in vals:
-                        url = normalize_http_url(str(val))
-                        if url:
-                            return url
+                        add_deploy_candidate(candidates, path, str(val),
+                                             source_priority=90)
         except Exception:
             pass
+    for url in deploy_urls_from_text(path):
+        add_deploy_candidate(candidates, path, url, source_priority=45,
+                             require_project_match=True, origin_only=True)
     vercel_url = detect_vercel_project_url(path)
     if vercel_url:
-        return vercel_url
+        add_deploy_candidate(candidates, path, vercel_url, source_priority=15)
     fly = os.path.join(path, "fly.toml")
     if os.path.exists(fly):
         try:
             m = re.search(r'(?m)^\s*app\s*=\s*["\']([^"\']+)["\']', open(fly, errors="ignore").read())
             if m:
-                return f"https://{m.group(1)}.fly.dev"
+                add_deploy_candidate(candidates, path, f"https://{m.group(1)}.fly.dev",
+                                     source_priority=20)
         except Exception:
             pass
     wrangler = os.path.join(path, "wrangler.toml")
@@ -256,9 +378,13 @@ def detect_deploy_url(path):
         try:
             m = re.search(r'https://[^\s"\']+', open(wrangler, errors="ignore").read())
             if m:
-                return normalize_http_url(m.group(0).rstrip(","))
+                add_deploy_candidate(candidates, path, m.group(0).rstrip(","),
+                                     source_priority=70)
         except Exception:
             pass
+    if candidates:
+        candidates.sort(key=lambda c: (-c[0], c[1]))
+        return candidates[0][2]
     return None
 
 
