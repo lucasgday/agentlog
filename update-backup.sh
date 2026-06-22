@@ -431,6 +431,7 @@ echo "  TOTAL: $TOTAL"
 
 # write this run into log.json (cumulative run history)
 LOG="$BASE/.sync-state/log.json"
+LOG_PUBLIC="$BASE/log.json"
 mkdir -p "$BASE/.sync-state"
 # net new conversations vs the previous run (read BEFORE prepending the new entry)
 PREV=$(python3 -c "import json,os,sys; p=sys.argv[1]; h=json.load(open(p)) if os.path.exists(p) else []; print(h[0].get('total',0) if h else 0)" "$LOG" 2>/dev/null || echo 0)
@@ -439,9 +440,9 @@ echo "  NEW: $NEW"
 DATE=$(date +"%Y-%m-%dT%H:%M:%S%z")
 ENTRY=$(printf '{"date":"%s","total":%d,%s}' "$DATE" "$TOTAL" "$(IFS=,; echo "${SUMMARY[*]}")")
 # prepend the new entry to the history (keep last 50)
-python3 - "$LOG" "$ENTRY" <<'PYEOF'
+python3 - "$LOG" "$LOG_PUBLIC" "$ENTRY" <<'PYEOF'
 import sys, json, os
-log_path, entry = sys.argv[1], sys.argv[2]
+log_path, public_log_path, entry = sys.argv[1], sys.argv[2], sys.argv[3]
 hist = []
 if os.path.exists(log_path):
     try: hist = json.load(open(log_path))
@@ -451,6 +452,7 @@ except Exception: e = {"date": "?", "total": 0}
 hist.insert(0, e)
 hist = hist[:50]
 json.dump(hist, open(log_path, "w"), ensure_ascii=False, indent=2)
+json.dump(hist, open(public_log_path, "w"), ensure_ascii=False, indent=2)
 PYEOF
 
 # desktop notification (macOS osascript, or Linux notify-send if present)
