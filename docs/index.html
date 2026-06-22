@@ -1754,7 +1754,7 @@ function renderConversationSidebarChrome(){
 function renderProjectNavSidebar(activeName){
   renderProjectSidebarChrome();
   const root=document.getElementById("projects"); root.innerHTML="";
-  let rows=getProjectRows().sort((a,b)=>a.name.localeCompare(b.name,"es"));
+  let rows=getProjectRows().sort((a,b)=>(b.lastSort||"").localeCompare(a.lastSort||"") || a.name.localeCompare(b.name,"es"));
   if(state.query){
     const q=state.query;
     rows=rows.filter(p=>p.name.toLowerCase().includes(q) || [...p.sources].some(f=>niceSource(f).toLowerCase().includes(q)));
